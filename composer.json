@@ -1,0 +1,35 @@
+{
+  "name": "paveljurasek/phpwander",
+  "description": "PHP vulnerability scanner",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Pavel Jurásek",
+      "email": "jsem@paveljurasek.cz"
+    }
+  ],
+  "require": {
+    "php": "^7.1",
+    "phpstan/phpstan": "^0.9",
+    "ircmaxell/php-cfg": "dev-master",
+    "roave/better-reflection": "^2.0"
+  },
+  "require-dev": {
+    "consistence/coding-standard": "^2.0",
+    "nette/tester": "^1.7",
+    "phing/phing": "^2.16",
+    "slevomat/coding-standard": "^3.0",
+    "tracy/tracy": "^2.4",
+    "phpstan/phpstan-nette": "^0.9"
+  },
+  "autoload": {
+    "psr-4": {
+      "PHPWander\\": "src/"
+    }
+  },
+  "scripts": {
+    "phpstan": "vendor/bin/phpstan analyse -c phpstan.neon -l1 src/ --ansi"
+  }
+}

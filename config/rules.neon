@@ -1,0 +1,12 @@
+services:
+	- PHPWander\Rules\XSS\Echo_
+	- PHPWander\Rules\XSS\Print_
+	- PHPWander\Rules\XSS\Exit_
+#	- PHPWander\Rules\XSS\FuncCall(print_r, [1])
+	- PHPWander\Rules\VariableFunctionCalled
+	- PHPWander\Rules\FileInclusion
+	- PHPWander\Rules\TypeConfusion\InArray
+
+decorator:
+	PHPWander\Rules\Rule:
+		tags: [phpwander.rules.rule]

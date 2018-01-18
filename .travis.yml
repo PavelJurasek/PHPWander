@@ -1,0 +1,17 @@
+language: php
+php:
+  - 7.0
+  - 7.1
+  - 7.2
+
+env:
+  - dependencies=lowest
+  - dependencies=highest
+
+before_script:
+  - composer self-update
+  - if [ "$dependencies" = "lowest" ]; then composer update --prefer-lowest --no-interaction; fi;
+  - if [ "$dependencies" = "highest" ]; then composer update --no-interaction; fi;
+
+script:
+  - vendor/bin/phpstan analyse -c phpstan.neon -l1 src/ --ansi

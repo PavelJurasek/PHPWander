@@ -1,0 +1,91 @@
+parameters:
+	fileTypes:
+		- php
+
+	autoloadDirectories: []
+	autoloadFiles: []
+
+	excludeFiles: []
+
+includes:
+	- rules.neon
+
+services:
+	lexer: PhpParser\Lexer
+	parser: PhpParser\Parser\Php7
+	neon: Nette\Neon\Neon
+	funcCallFactory: PHPWander\Rules\FuncCallFactory(@sinkFunctions)
+
+	transition:
+		class: PHPWander\TransitionFunction
+		arguments:
+			sourceFunctions: @sourceFunctions
+			sinkFunctions: @sinkFunctions
+			sanitizerFunctions: @sanitizerFunctions
+			taintFunctions: @taintFunctions
+
+	_registryFactory: PHPWander\Rules\RegistryFactory
+
+	_registry:
+		class: PHPWander\Rules\Registry
+		factory: @_registryFactory::create()
+
+#	- PHPWander\Command\AnalyseApplication(%filetypes%)
+	analyser:
+		class: PHPWander\Analyser\Analyser
+		arguments: [%rootDir%, %fileTypes%]
+
+
+	broker:
+		class: PHPWander\Broker\Broker
+
+	nodeTraverser: PhpParser\NodeTraverser
+
+	stanParser: PHPStan\Parser\DirectParser
+
+	sources:
+		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sources.neon))
+		autowired: false
+	sinks:
+		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sinks.neon))
+		autowired: false
+	sanitizers:
+		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sanitizers.neon))
+		autowired: false
+	getTaint:
+		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/tainting.neon))
+		autowired: false
+
+	sourceFunctions:
+		class: PHPWander\SourceFunctions
+		arguments: [@sources]
+		autowired: false
+
+	sanitizerFunctions:
+		class: PHPWander\SanitizerFunctions
+		arguments: [@sanitizers]
+		autowired: false
+
+	sinkFunctions:
+		class: PHPWander\SinkFunctions
+		arguments: [@sinks]
+		autowired: false
+
+	taintFunctions:
+		class: PHPWander\TaintFunctions
+		arguments: [@getTaint]
+		autowired: false
+
+	fileHelper: PHPStan\File\FileHelper(%currentWorkingDirectory%)
+	fileExcluder: PHPStan\File\FileExcluder(@fileHelper, %excludeFiles%)
+
+	cfgParser:
+		class: PHPCfg\Parser
+
+	nodeScopeResolver: PHPWander\Analyser\NodeScopeResolver
+
+	wanderDirectParser:
+		class: PHPWander\Parser\DirectParser
+		autowired: false
+
+	cachedParser: PHPWander\Parser\CachedParser(@wanderDirectParser)

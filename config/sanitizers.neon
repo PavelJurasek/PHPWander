@@ -1,0 +1,139 @@
+bool:
+	- is_bool
+	- is_double
+	- is_float
+	- is_real
+	- is_long
+	- is_int
+	- is_integer
+	- is_null
+	- is_numeric
+	- is_finite
+	- is_infinite
+	- ctype_alnum
+	- ctype_alpha
+	- ctype_cntrl
+	- ctype_digit
+	- ctype_xdigit
+	- ctype_upper
+	- ctype_lower
+	- ctype_space
+	- in_array
+	- preg_match
+	- preg_match_all
+	- fnmatch
+	- ereg
+	- eregi
+
+string:
+	- intval
+	- floatval
+	- doubleval
+	- filter_input
+	- urlencode
+	- rawurlencode
+	- round
+	- floor
+	- strlen
+	- strrpos
+	- strpos
+	- strftime
+	- strtotime
+	- md5
+	- md5_file
+	- sha1
+	- sha1_file
+	- crypt
+	- crc32
+	- hash
+	- mhash
+	- hash_hmac
+	- password_hash
+	- mcrypt_encrypt
+	- mcrypt_generic
+	- base64_encode
+	- ord
+	- sizeof
+	- count
+	- bin2hex
+	- levenshtein
+	- abs
+	- bindec
+	- decbin
+	- dechex
+	- decoct
+	- hexdec
+	- rand
+	- max
+	- min
+	- metaphone
+	- tempnam
+	- soundex
+	- money_format
+	- number_format
+	- date_format
+	- filetype
+	- nl_langinfo
+	- bzcompress
+	- convert_uuencode
+	- gzdeflate
+	- gzencode
+	- gzcompress
+	- http_build_query
+	- lzf_compress
+	- zlib_encode
+	- imap_binary
+	- iconv_mime_encode
+	- bson_encode
+	- sqlite_udf_encode_binary
+	- session_name
+	- readlink
+	- getservbyport
+	- getprotobynumber
+	- gethostname
+	- gethostbynamel
+	- gethostbyname
+
+xss:
+	- htmlentities
+	- htmlspecialchars
+	- highlight_string
+
+sql:
+	- addslashes
+	- dbx_escape_string
+	- db2_escape_string
+	- ingres_escape_string
+	- maxdb_escape_string
+	- maxdb_real_escape_string
+	- mysql_escape_string
+	- mysql_real_escape_string
+	- mysqli_escape_string
+	- mysqli_real_escape_string
+	- pg_escape_string
+	- pg_escape_bytea
+	- sqlite_escape_string
+	- sqlite_udf_encode_binary
+	- cubrid_real_escape_string
+
+preg:
+	- preg_quote
+
+file:
+	- basename
+	- dirname
+	- pathinfo
+
+system:
+	- escapeshellarg
+	- escapeshellcmd
+
+xpath:
+	- addslashes
+
+ldap: []
+
+all: [%xss%, %sql%, %preg%, %file%, %system%, %xpath%]
+
+# sanitizing functions that work only when embedded in quotes
+quoteAnalysis: [%sql%]
