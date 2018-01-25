@@ -34,15 +34,18 @@ abstract class AbstractRule
 		return '?';
 	}
 
-	protected function decideOpsTaint(array $ops)
+	protected function decideOpsTaint(array $ops): int
 	{
 		$taint = Taint::UNKNOWN;
+		/** @var Op $op */
 		foreach ($ops as $op) {
-//			$taint = $this->leastUpperBound($taint, $o);
+			$taint = $this->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
 		}
+
+		return $taint;
 	}
 
-	private function leastUpperBound(int $taint, int $transferOp)
+	protected function leastUpperBound(int $taint, int $transferOp)
 	{
 		return max($taint, $transferOp);
 	}

@@ -46,6 +46,9 @@ class NodeScopeResolver
 	/** @var Func[] */
 	private $functions;
 
+	/** @var FuncCallMapping[] */
+	private $funcCallMappings = [];
+
 	/** @var Block[] */
 	private $visitedBlocks = [];
 
@@ -215,6 +218,8 @@ class NodeScopeResolver
 					$taint = $this->transitionFunction->transfer($scope, $variable);
 					$op->setAttribute(Taint::ATTR, $taint);
 				}
+
+//				$op->result->setAttribute(Taint::ATTR, $taint);
 			} else {
 				dump(__METHOD__);
 				dump($op->var->original);
@@ -225,25 +230,37 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processFunction(Func $function, Op\Expr\FuncCall $call, Scope $scope, \Closure $nodeCallback) {
+	private function processFunction(Func $function, Op\Expr\FuncCall $call, Scope $scope, \Closure $nodeCallback)
+	{
+		$bindArgs = [];
+
 		foreach ($function->params as $i => $param) {
 			/** @var Operand $arg */
 			$arg = $call->args[$i];
 
 			if ($arg instanceof Operand\Temporary && $arg->original instanceof Operand\Variable) {
 				$scope = $scope->assignVariable(Helpers::unwrapOperand($param->name), $scope->getVariableTaint(Helpers::unwrapOperand($arg)));
+				$bindArgs[Helpers::unwrapOperand($param->name)] = $scope->getVariableTaint(Helpers::unwrapOperand($arg));
 			} else { // func call?
 				$scope = $scope->assignVariable(Helpers::unwrapOperand($param->name), $this->lookForFuncCalls($arg));
+				$bindArgs[Helpers::unwrapOperand($param->name)] = $this->lookForFuncCalls($arg);
 			}
 		}
 
-		$this->processNodes($function->cfg->children, $scope, $nodeCallback);
+		$mapping = $this->findFuncCallMapping($function, $bindArgs);
+		if ($mapping !== null) {
+			$taint = $mapping->getTaint();
+		} else {
+			$this->processNodes($function->cfg->children, $scope, $nodeCallback);
 
-		$taint = Taint::UNKNOWN;
-		foreach ($function->cfg->children as $op) {
-			if ($op instanceof Op\Terminal\Return_) {
-				$taint = $this->transitionFunction->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
+			$taint = Taint::UNKNOWN;
+			foreach ($function->cfg->children as $op) {
+				if ($op instanceof Op\Terminal\Return_) {
+					$taint = $this->transitionFunction->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
+				}
 			}
+
+			$this->funcCallMappings[] = new FuncCallMapping($function, $bindArgs, $taint);
 		}
 
 		$call->setAttribute(Taint::ATTR, $taint);
@@ -251,15 +268,15 @@ class NodeScopeResolver
 
 	private function lookForFuncCalls(Operand\Temporary $arg): int
 	{
+		$taint = Taint::UNKNOWN;
 		if ($arg->original === null) {
+			/** @var Op $op */
 			foreach ($arg->ops as $op) {
-				if ($op instanceof Op\Expr\FuncCall) {
-					return (int) $op->getAttribute(Taint::ATTR);
-				}
+				$taint = $this->transitionFunction->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
 			}
 		}
 
-		return Taint::UNKNOWN;
+		return $taint;
 	}
 
 	private function processInclude(Scope $scope, Op\Expr\Include_ $op, \Closure $nodeCallback): Scope
@@ -402,6 +419,17 @@ class NodeScopeResolver
 		}
 
 		return false;
+	}
+
+	private function findFuncCallMapping(Func $function, array $bindArgs): ?FuncCallMapping
+	{
+		foreach ($this->funcCallMappings as $mapping) {
+			if ($mapping->match($function, $bindArgs)) {
+				return $mapping;
+			}
+		}
+
+		return null;
 	}
 
 }

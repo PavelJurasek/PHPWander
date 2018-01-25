@@ -39,6 +39,7 @@ class FuncCall extends AbstractRule implements Rule
 	}
 
 	/**
+	 * @param Op\Expr\FuncCall $node
 	 * @return string[]
 	 */
 	public function processNode(Op $node, Scope $scope): array
@@ -49,7 +50,7 @@ class FuncCall extends AbstractRule implements Rule
 			return [];
 		}
 
-		if ($this->isTainted((int) $node->getAttribute(Taint::ATTR))) {
+		if ($this->isTainted((int) $node->getAttribute(Taint::ATTR)) && $node->getAttribute(Taint::ATTR_SINK) !== null) {
 			return [
 				sprintf('Sensitive sink %s is tainted.', $name),
 			];
@@ -59,7 +60,6 @@ class FuncCall extends AbstractRule implements Rule
 			if ($argNumber > 0) {
 				$arg = $node->args[$argNumber-1];
 
-//				dump($this->isArgumentTainted($arg, $scope));
 				if ($this->isArgumentTainted($arg, $scope)) {
 					return [
 						sprintf('%s argument of sensitive function call %s is tainted.', $this->formatNumber($argNumber), $name),
@@ -87,7 +87,14 @@ class FuncCall extends AbstractRule implements Rule
 			}
 		}
 
-		return true;
+		if (!empty($arg->ops)) {
+			return $this->isTainted($this->decideOpsTaint($arg->ops));
+		}
+
+		dump($arg);
+		dump(__METHOD__);
+
+		return false;
 	}
 
 	private function formatNumber(int $argNumber): string

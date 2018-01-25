@@ -128,6 +128,7 @@ class TransitionFunction
 //					return $taint;
 //				}
 
+				// sinks should be handled by rules?
 				$sink = $this->sinkFunctions->getSink($funcName);
 				if ($sink) {
 					$sink = [$sink];
@@ -145,9 +146,12 @@ class TransitionFunction
 
 //				return $this->transferType($type);
 			} elseif ($op->name instanceof Operand\Variable) {
-
+				dump(__METHOD__);
+				dump('var');
+				dump($op);
 			} else {
-				dump('todo');
+				dump(__METHOD__);
+				dump('?');
 				dump($op);
 			}
 		}
