@@ -36,7 +36,7 @@ class Print_ extends AbstractRule implements Rule
 
 				if ($scope->getVariableTaint($variable->name->value) === Taint::TAINTED) {
 					return [
-						sprintf('Print is tainted by %s.', $this->describeOp($node->expr->ops[0])),
+						sprintf('Print is tainted by %s.', $this->describeOp($node->expr->ops[0], $scope)),
 					];
 				}
 			}
@@ -46,7 +46,7 @@ class Print_ extends AbstractRule implements Rule
 				foreach ($node->expr->ops as $op) {
 					if ($this->isTainted((int) $op->getAttribute(Taint::ATTR))) {
 						return [
-							sprintf('Print is tainted by %s.', $this->describeOp($op)),
+							sprintf('Print is tainted by %s.', $this->describeOp($op, $scope)),
 						];
 					}
 				}

@@ -36,7 +36,7 @@ class Exit_ extends AbstractRule implements Rule
 
 				if ($scope->getVariableTaint($variable->name->value) === Taint::TAINTED) {
 					return [
-						sprintf('Exit is tainted by %s.', $this->describeOp($node->expr->ops[0])),
+						sprintf('Exit is tainted by %s.', $this->describeOp($node->expr->ops[0], $scope)),
 					];
 				}
 			}
@@ -46,7 +46,7 @@ class Exit_ extends AbstractRule implements Rule
 				foreach ($node->expr->ops as $op) {
 					if ($this->isTainted((int) $op->getAttribute(Taint::ATTR))) {
 						return [
-							sprintf('Exit is tainted by %s.', $this->describeOp($op)),
+							sprintf('Exit is tainted by %s.', $this->describeOp($op, $scope)),
 						];
 					}
 				}
