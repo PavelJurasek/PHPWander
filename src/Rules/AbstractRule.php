@@ -37,7 +37,34 @@ abstract class AbstractRule
 		}
 
 		if ($op instanceof Op\Expr\BinaryOp\Concat) {
-			return sprintf('concat of %s and %s on line %s in file %s', $this->describeOperand($op->left), $this->describeOperand($op->right), $op->getLine(), $op->getFile());
+			return sprintf('concat of %s and %s on line %s in file %s', $this->describeOperand($op->left, $scope), $this->describeOperand($op->right, $scope), $op->getLine(), $op->getFile());
+		}
+
+		if ($op instanceof Op\Phi) {
+			$parentBlock = $scope->getParentBlock();
+
+			if ($parentBlock === null) {
+				dump(__METHOD__);
+				dump('no parent block');
+				die;
+			}
+
+			/** @var Operand\Variable $var */
+			foreach ($op->vars as $var) {
+				foreach ($parentBlock->children as $child) {
+					if (in_array($child, $var->ops, true)) {
+						return $this->describeOperand($var, $scope);
+					}
+				}
+			}
+
+			$str = sprintf('one of: %s', $this->describeOperand($op->vars[0], $scope));
+
+			for ($i = 1; $i < count($op->vars); $i++) {
+				$str .= sprintf(', %s', $this->describeOperand($op->vars[$i], $scope));
+			}
+
+			return $str;
 		}
 
 		return '?';
