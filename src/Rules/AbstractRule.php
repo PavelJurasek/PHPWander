@@ -6,7 +6,7 @@ use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPWander\Analyser\BlockScopeStorage;
 use PHPWander\Analyser\Helpers;
-use PHPWander\Rules\XSS\FuncCall;
+use PHPWander\Analyser\Scope;
 use PHPWander\Taint;
 
 /**
@@ -15,7 +15,6 @@ use PHPWander\Taint;
 abstract class AbstractRule
 {
 
-	protected function describeOp(Op $op): string
 	/** @var BlockScopeStorage */
 	private $blockScopeStorage;
 
@@ -24,13 +23,14 @@ abstract class AbstractRule
 		$this->blockScopeStorage = $blockScopeStorage;
 	}
 
+	protected function describeOp(Op $op, Scope $scope): string
 	{
 		if ($op instanceof Op\Expr\Assign) {
 			return sprintf('assignment on line %d in file %s', $op->getLine(), $op->getFile());
 		} elseif ($op instanceof Op\Expr\ArrayDimFetch) {
-			return sprintf('%s[%s]', $this->unwrapOperand($op->var), $this->unwrapOperand($op->dim));
+			return sprintf('%s[%s]', $this->unwrapOperand($op->var, $scope), $this->unwrapOperand($op->dim, $scope));
 		} elseif ($op instanceof Op\Expr\FuncCall) {
-			return sprintf('function call to %s', $this->unwrapOperand($op->name));
+			return sprintf('function call to %s', $this->unwrapOperand($op->name, $scope));
 		} elseif ($op instanceof Op\Expr\PropertyFetch) {
 			return sprintf('property $%s', Helpers::unwrapOp($op));
 //			return $this->describeOp($op->var->ops[0]);
@@ -59,35 +59,37 @@ abstract class AbstractRule
 		return max($taint, $transferOp);
 	}
 
-	private function describeOperand(Operand $operand)
+	private function describeOperand(Operand $operand, Scope $scope)
 	{
 		if ($operand instanceof Operand\Literal) {
 			return sprintf('literal %s', $operand->value);
 		} elseif ($operand instanceof Operand\Temporary) {
+			if (!empty($operand->ops)) {
+				return $this->describeOp($operand->ops[0], $scope);
+			}
+
 			if ($operand->original instanceof Operand\Variable) {
 				return sprintf('variable $%s', $operand->original->name->value);
 			}
-
-			return $this->describeOp($operand->ops[0]);
 		}
 
 		return '?';
 	}
 
-	protected function unwrapOperand(Operand $operand, bool $quote = true): string
+	protected function unwrapOperand(Operand $operand, Scope $scope, bool $quote = true): string
 	{
 		if ($operand instanceof Operand\Variable) {
-			return sprintf('$%s', $this->unwrapOperand($operand->name, false));
+			return sprintf('$%s', $this->unwrapOperand($operand->name, $scope, false));
 		} elseif ($operand instanceof Operand\Literal) {
 			return $quote ? sprintf('\'%s\'', $operand->value) : $operand->value;
 		} elseif ($operand instanceof Operand\Temporary) {
 			if ($operand->original instanceof Operand\Variable) {
-				return $this->unwrapOperand($operand->original);
+				return $this->unwrapOperand($operand->original, $scope);
 			}
 		}
 
 		foreach ($operand->ops as $op) {
-			return $this->describeOp($op);
+			return $this->describeOp($op, $scope);
 		}
 
 		return '?';

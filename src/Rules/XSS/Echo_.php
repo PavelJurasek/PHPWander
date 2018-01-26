@@ -42,7 +42,7 @@ class Echo_ extends AbstractRule implements Rule
 //					!in_array('xss', (array) $variable->ops[0]->getAttribute(Taint::ATTR_SANITIZE), true)
 //				) {
 					return [
-						sprintf('Echo is tainted by %s.', $this->describeOp($node->expr->ops[0])),
+						sprintf('Echo is tainted by %s.', $this->describeOp($node->expr->ops[0], $scope)),
 					];
 				}
 			}
@@ -52,7 +52,7 @@ class Echo_ extends AbstractRule implements Rule
 			if ($scope->hasVariableTaint($name)) {
 				if ($this->isTainted($scope->getVariableTaint($name))) {
 					return [
-						sprintf('Echo is tainted by %s.', $this->unwrapOperand($node->expr)),
+						sprintf('Echo is tainted by %s.', $this->unwrapOperand($node->expr, $scope)),
 					];
 				}
 			}
@@ -62,7 +62,7 @@ class Echo_ extends AbstractRule implements Rule
 				foreach ($node->expr->ops as $op) {
 					if ($this->isTainted((int) $op->getAttribute(Taint::ATTR))) {
 						return [
-							sprintf('Echo is tainted by %s.', $this->describeOp($op)),
+							sprintf('Echo is tainted by %s.', $this->describeOp($op, $scope)),
 						];
 					}
 				}
