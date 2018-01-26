@@ -49,10 +49,11 @@ class NodeScopeResolver
 	/** @var FuncCallMapping[] */
 	private $funcCallMappings = [];
 
-	/** @var Block[] */
-	private $visitedBlocks = [];
+	/** @var BlockScopeStorage */
+	private $blockScopeStorage;
 
 	public function __construct(
+		BlockScopeStorage $blockScopeStorage,
 		Broker $broker,
 		TransitionFunction $transitionFunction,
 		\PHPWander\Parser\Parser $parser,
@@ -62,6 +63,7 @@ class NodeScopeResolver
 		array $earlyTerminatingMethodCalls = []
 	)
 	{
+		$this->blockScopeStorage = $blockScopeStorage;
 		$this->broker = $broker;
 		$this->transitionFunction = $transitionFunction;
 		$this->parser = $parser;
@@ -100,8 +102,8 @@ class NodeScopeResolver
 		if (in_array($block, $this->visitedBlocks)) {
 			return $scope;
 		}
+		$this->blockScopeStorage->put($block, $blockScope);
 
-		$this->visitedBlocks[] = $block;
 
 		return $this->processNodes($block->children, $scope, $opCallback);
 	}

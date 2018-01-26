@@ -89,3 +89,5 @@ services:
 		autowired: false
 
 	cachedParser: PHPWander\Parser\CachedParser(@wanderDirectParser)
+
+	- PHPWander\Analyser\BlockScopeStorage

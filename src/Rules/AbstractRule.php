@@ -4,6 +4,7 @@ namespace PHPWander\Rules;
 
 use PHPCfg\Op;
 use PHPCfg\Operand;
+use PHPWander\Analyser\BlockScopeStorage;
 use PHPWander\Analyser\Helpers;
 use PHPWander\Rules\XSS\FuncCall;
 use PHPWander\Taint;
@@ -15,6 +16,14 @@ abstract class AbstractRule
 {
 
 	protected function describeOp(Op $op): string
+	/** @var BlockScopeStorage */
+	private $blockScopeStorage;
+
+	public function __construct(BlockScopeStorage $blockScopeStorage)
+	{
+		$this->blockScopeStorage = $blockScopeStorage;
+	}
+
 	{
 		if ($op instanceof Op\Expr\Assign) {
 			return sprintf('assignment on line %d in file %s', $op->getLine(), $op->getFile());
