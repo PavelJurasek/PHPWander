@@ -5,6 +5,7 @@ namespace PHPWander\Rules;
 use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Literal;
+use PHPWander\Analyser\BlockScopeStorage;
 use PHPWander\Analyser\Scope;
 use PHPWander\Taint;
 
@@ -23,8 +24,10 @@ class FuncCall extends AbstractRule implements Rule
 	/** @var array */
 	private $sanitizers;
 
-	public function __construct(string $functionName, array $args, array $sanitizers)
+	public function __construct(BlockScopeStorage $blockScopeStorage, string $functionName, array $args, array $sanitizers)
 	{
+		parent::__construct($blockScopeStorage);
+
 		$this->functionName = $functionName;
 		$this->args = $args;
 		$this->sanitizers = $sanitizers;
