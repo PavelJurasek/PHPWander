@@ -98,14 +98,14 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processBlock(Block $block, Scope $scope, \Closure $opCallback): Scope {
-		if (in_array($block, $this->visitedBlocks)) {
-			return $scope;
-		}
+	private function processBlock(Block $block, Scope $scope, \Closure $opCallback): Scope
+	{
+		$blockScope = $scope->enterBlock($block);
 		$this->blockScopeStorage->put($block, $blockScope);
 
+		$blockScope = $this->processNodes($block->children, $blockScope, $opCallback);
 
-		return $this->processNodes($block->children, $scope, $opCallback);
+		return $blockScope->leaveBlock();
 	}
 
 	/**
@@ -132,8 +132,7 @@ class NodeScopeResolver
 			$scope = $this->processInclude($scope, $op, $nodeCallback);
 
 		} elseif ($op instanceof Op\Stmt\JumpIf) {
-//			$this->processIf($op->cond, $scope, $nodeCallback);
-			$scope = $this->processNodes($op->if->children, $scope, $nodeCallback);
+			$scope = $this->processIf($op, $scope, $nodeCallback);
 
 		} elseif ($op instanceof Op\Stmt\Function_) {
 //			$scope = $this->enterFunction($scope, $op);
@@ -201,6 +200,11 @@ class NodeScopeResolver
 		$taint = $this->transitionFunction->transfer($scope, $op->expr);
 		$op->setAttribute(Taint::ATTR, $taint);
 		$scope = $scope->assignVariable($name, $taint);
+
+		if ($op->expr instanceof Operand\Temporary) {
+			$scope = $scope->assignTemporary($op->expr, $taint);
+			$scope = $scope->assignTemporary($op->result, $taint);
+		}
 //		taint($scope->getVariableTaints());
 
 		return $scope;
@@ -221,6 +225,7 @@ class NodeScopeResolver
 					$op->setAttribute(Taint::ATTR, $taint);
 				}
 
+				$scope = $scope->assignTemporary($op->result, $taint);
 //				$op->result->setAttribute(Taint::ATTR, $taint);
 			} else {
 				dump(__METHOD__);
@@ -432,6 +437,14 @@ class NodeScopeResolver
 		}
 
 		return null;
+	}
+
+	private function processIf(Op\Stmt\JumpIf $op, Scope $scope, callable $nodeCallback): Scope
+	{
+		$scope = $this->processBlock($op->if, $scope, $nodeCallback);
+		$scope = $this->processBlock($op->else, $scope, $nodeCallback);
+
+		return $scope;
 	}
 
 }
