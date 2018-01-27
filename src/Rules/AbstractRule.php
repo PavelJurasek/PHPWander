@@ -36,8 +36,14 @@ abstract class AbstractRule
 //			return $this->describeOp($op->var->ops[0]);
 		}
 
+		if ($op instanceof Op\Stmt\JumpIf) {
+			return sprintf('if %s', $this->describeOperand($op->cond, $scope));
+		}
+
 		if ($op instanceof Op\Expr\BinaryOp\Concat) {
 			return sprintf('concat of %s and %s on line %s in file %s', $this->describeOperand($op->left, $scope), $this->describeOperand($op->right, $scope), $op->getLine(), $op->getFile());
+		} elseif ($op instanceof Op\Expr\BinaryOp) {
+			return sprintf('%s %s %s', $this->describeOperand($op->left, $scope), $this->resolveBinaryOp($op), $this->describeOperand($op->right, $scope));
 		}
 
 		if ($op instanceof Op\Phi) {
@@ -49,11 +55,14 @@ abstract class AbstractRule
 				die;
 			}
 
+			$stmt = $scope->getStatementForBlock($parentBlock);
+//			dump($scope->getCurrentBlock());
+
 			/** @var Operand\Variable $var */
 			foreach ($op->vars as $var) {
 				foreach ($parentBlock->children as $child) {
 					if (in_array($child, $var->ops, true)) {
-						return $this->describeOperand($var, $scope);
+						return $stmt ? sprintf('%s (%s)', $this->describeOperand($var, $scope), $this->describeOp($stmt, $scope)) : $this->describeOperand($var, $scope);
 					}
 				}
 			}
@@ -125,6 +134,60 @@ abstract class AbstractRule
 	protected function isTainted(int $taint): bool
 	{
 		return $taint === Taint::TAINTED || $taint === Taint::BOTH;
+	}
+
+	private function resolveBinaryOp(Op\Expr\BinaryOp $op): string
+	{
+		switch (get_class($op)) {
+			case Op\Expr\BinaryOp\BitwiseAnd::class:
+				return '&';
+			case Op\Expr\BinaryOp\BitwiseOr::class:
+				return '|';
+			case Op\Expr\BinaryOp\BitwiseXor::class:
+				return '^';
+			case Op\Expr\BinaryOp\Coalesce::class:
+				return '??';
+			case Op\Expr\BinaryOp\Concat::class:
+				return '.';
+			case Op\Expr\BinaryOp\Div::class:
+				return '/';
+			case Op\Expr\BinaryOp\Equal::class:
+				return '==';
+			case Op\Expr\BinaryOp\Greater::class:
+				return '>';
+			case Op\Expr\BinaryOp\GreaterOrEqual::class:
+				return '>=';
+			case Op\Expr\BinaryOp\Identical::class:
+				return '===';
+			case Op\Expr\BinaryOp\LogicalXor::class:
+				return 'xor';
+			case Op\Expr\BinaryOp\Minus::class:
+				return '-';
+			case Op\Expr\BinaryOp\Mod::class:
+				return '%';
+			case Op\Expr\BinaryOp\Mul::class:
+				return '*';
+			case Op\Expr\BinaryOp\NotEqual::class:
+				return '!=';
+			case Op\Expr\BinaryOp\NotIdentical::class:
+				return '!==';
+			case Op\Expr\BinaryOp\Plus::class:
+				return '+';
+			case Op\Expr\BinaryOp\Pow::class:
+				return '**';
+			case Op\Expr\BinaryOp\ShiftLeft::class:
+				return '<<';
+			case Op\Expr\BinaryOp\ShiftRight::class:
+				return '>>';
+			case Op\Expr\BinaryOp\Smaller::class:
+				return '<';
+			case Op\Expr\BinaryOp\SmallerOrEqual::class:
+				return '<=';
+			case Op\Expr\BinaryOp\Spaceship::class:
+				return '<=>';
+			default:
+				return 'unknown';
+		}
 	}
 
 }

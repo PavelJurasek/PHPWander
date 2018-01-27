@@ -3,6 +3,7 @@
 namespace PHPWander\Analyser;
 
 use PHPCfg\Block;
+use PHPCfg\Op\Stmt;
 use PHPCfg\Operand\Temporary;
 use PHPWander\Taint;
 use PHPWander\TransitionFunction;
@@ -34,6 +35,9 @@ class Scope
 	/** @var Block[] */
 	private $blocks = [];
 
+	/** @var Stmt[] */
+	private $statementStack = [];
+
 	public function __construct(
 		TransitionFunction $transitionFunction,
 		string $file,
@@ -41,7 +45,8 @@ class Scope
 		Scope $parentScope = null,
 		array $variablesTaints = [],
 		array $temporaries = [],
-		array $blocks = []
+		array $blocks = [],
+		array $statementStack = []
 	) {
 		$this->transitionFunction = $transitionFunction;
 		$this->file = $file;
@@ -50,6 +55,7 @@ class Scope
 		$this->variableTaints = $variablesTaints;
 		$this->temporaries = $temporaries;
 		$this->blocks = $blocks;
+		$this->statementStack = $statementStack;
 	}
 
 	public function getFile(): string
@@ -72,10 +78,15 @@ class Scope
 		);
 	}
 
-	public function enterBlock(Block $block): self
+	public function enterBlock(Block $block, Stmt $stmt = null): self
 	{
 		$blocks = $this->blocks;
 		array_push($blocks, $block);
+
+		$statements = $this->statementStack;
+		if ($stmt) {
+			$statements[$this->hash($block)] = $stmt;
+		}
 
 		$scope = new self(
 			$this->transitionFunction,
@@ -84,7 +95,8 @@ class Scope
 			$this,
 			$this->variableTaints,
 			$this->getTemporaryTaints(),
-			$blocks
+			$blocks,
+			$statements
 		);
 
 		return $scope;
@@ -110,6 +122,38 @@ class Scope
 	{
 		return $this->parentScope;
 	}
+
+	public function getStatementForBlock(Block $block): ?Stmt
+	{
+		return $this->statementStack[$this->hash($block)];
+	}
+
+	public function getCurrentStatement(): ?Stmt
+	{
+		return $this->statementStack[count($this->statementStack) - 1];
+	}
+
+	public function getParentStatement(): ?Stmt
+	{
+		return $this->statementStack[count($this->statementStack) - 2];
+	}
+
+//	public function enterStatement(Stmt $statement): self
+//	{
+//		$statements = $this->statementStack;
+//		array_push($statements, $statement);
+//
+//		return new self(
+//			$this->transitionFunction,
+//			$this->file,
+//			$this->getFile(),
+//			$this,
+//			$this->variableTaints,
+//			$this->getTemporaryTaints(),
+//			$this->blocks,
+//			$statements
+//		);
+//	}
 
 	/**
 	 * @return int[]
@@ -149,7 +193,8 @@ class Scope
 			$this->parentScope,
 			$variableTaints,
 			$this->getTemporaryTaints(),
-			$this->blocks
+			$this->blocks,
+			$this->statementStack
 		);
 	}
 
@@ -168,7 +213,8 @@ class Scope
 			$this->parentScope,
 			$variableTaints,
 			$this->getTemporaryTaints(),
-			$this->blocks
+			$this->blocks,
+			$this->statementStack
 		);
 	}
 
@@ -180,7 +226,7 @@ class Scope
 	public function assignTemporary(Temporary $temporary, int $taint = Taint::UNKNOWN): self
 	{
 		$temporaryTaints = $this->getTemporaryTaints();
-		$temporaryTaints[substr(md5(spl_object_hash($temporary)), 0, 4)] = $taint;
+		$temporaryTaints[$this->hash($temporary)] = $taint;
 
 		return new self(
 			$this->transitionFunction,
@@ -189,7 +235,8 @@ class Scope
 			$this->parentScope,
 			$this->getVariableTaints(),
 			$temporaryTaints,
-			$this->blocks
+			$this->blocks,
+			$this->statementStack
 		);
 	}
 
@@ -224,6 +271,11 @@ class Scope
 	public function setResultTaint(int $resultTaint): void
 	{
 		$this->resultTaint = $resultTaint;
+	}
+
+	private function hash($object): string
+	{
+		return substr(md5(spl_object_hash($object)), 0, 4);
 	}
 
 }
