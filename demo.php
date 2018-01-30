@@ -34,7 +34,7 @@ $container = $containerFactory->create($tmpDir, $additionalConfigFiles);
 /** @var \PHPWander\Analyser\Analyser $analyser */
 $analyser = $container->getByType(\PHPWander\Analyser\Analyser::class);
 
-$file = realpath(getcwd() . '/tests/cases/1/');
+$file = realpath(getcwd() . '/tests/cases/3/');
 
 $errors = $analyser->analyse([
 	$file,

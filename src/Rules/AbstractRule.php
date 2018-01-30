@@ -88,6 +88,8 @@ abstract class AbstractRule
 			}
 		} elseif ($op instanceof Op\Terminal\Return_) {
 			$str = sprintf('return %s', $this->describeOperand($op->expr, $scope));
+		} elseif ($op instanceof Op\Expr\Param) {
+			return '';
 		}
 
 		if (!isset($str)) {
@@ -130,7 +132,11 @@ abstract class AbstractRule
 			return sprintf('literal %s', $operand->value);
 		} elseif ($operand instanceof Operand\Temporary) {
 			if (!empty($operand->ops)) {
-				return $this->describeOp($operand->ops[0], $scope);
+				$result = $this->describeOp($operand->ops[0], $scope);
+
+				if ($result !== '') {
+					return $result;
+				}
 			}
 
 			if ($operand->original instanceof Operand\Variable) {
