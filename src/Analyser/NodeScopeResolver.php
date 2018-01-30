@@ -46,14 +46,15 @@ class NodeScopeResolver
 	/** @var Func[] */
 	private $functions;
 
-	/** @var FuncCallMapping[] */
-	private $funcCallMappings = [];
-
 	/** @var BlockScopeStorage */
 	private $blockScopeStorage;
 
+	/** @var FuncCallStorage */
+	private $funcCallStorage;
+
 	public function __construct(
 		BlockScopeStorage $blockScopeStorage,
+		FuncCallStorage $funcCallStorage,
 		Broker $broker,
 		TransitionFunction $transitionFunction,
 		\PHPWander\Parser\Parser $parser,
@@ -64,6 +65,7 @@ class NodeScopeResolver
 	)
 	{
 		$this->blockScopeStorage = $blockScopeStorage;
+		$this->funcCallStorage = $funcCallStorage;
 		$this->broker = $broker;
 		$this->transitionFunction = $transitionFunction;
 		$this->parser = $parser;
@@ -145,7 +147,7 @@ class NodeScopeResolver
 		} elseif ($op instanceof Op\Expr\FuncCall) {
 			$funcName = Helpers::unwrapOperand($op->name);
 			if (array_key_exists($funcName, $this->functions)) {
-				$this->processFunction($this->functions[$funcName], $op, $scope, $nodeCallback);
+				$this->processFunctionCall($this->functions[$funcName], $op, $scope, $nodeCallback);
 			} else {
 				$taint = $this->transitionFunction->transferOp($scope, $op);
 				$op->setAttribute(Taint::ATTR, $taint);
@@ -237,7 +239,7 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processFunction(Func $function, Op\Expr\FuncCall $call, Scope $scope, \Closure $nodeCallback)
+	private function processFunctionCall(Func $function, Op\Expr\FuncCall $call, Scope $scope, \Closure $nodeCallback): Scope
 	{
 		$bindArgs = [];
 
@@ -246,31 +248,37 @@ class NodeScopeResolver
 			$arg = $call->args[$i];
 
 			if ($arg instanceof Operand\Temporary && $arg->original instanceof Operand\Variable) {
-				$scope = $scope->assignVariable(Helpers::unwrapOperand($param->name), $scope->getVariableTaint(Helpers::unwrapOperand($arg)));
 				$bindArgs[Helpers::unwrapOperand($param->name)] = $scope->getVariableTaint(Helpers::unwrapOperand($arg));
 			} else { // func call?
-				$scope = $scope->assignVariable(Helpers::unwrapOperand($param->name), $this->lookForFuncCalls($arg));
 				$bindArgs[Helpers::unwrapOperand($param->name)] = $this->lookForFuncCalls($arg);
 			}
 		}
 
+		$currentScope = $scope;
 		$mapping = $this->findFuncCallMapping($function, $bindArgs);
+
 		if ($mapping !== null) {
 			$taint = $mapping->getTaint();
 		} else {
-			$this->processNodes($function->cfg->children, $scope, $nodeCallback);
+			$scope = $scope->enterFuncCall($function, $call);
 
-			$taint = Taint::UNKNOWN;
-			foreach ($function->cfg->children as $op) {
-				if ($op instanceof Op\Terminal\Return_) {
-					$taint = $this->transitionFunction->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
-				}
+			foreach ($bindArgs as $argName => $argTaint) {
+				$scope = $scope->assignVariable($argName, $argTaint);
 			}
 
-			$this->funcCallMappings[] = new FuncCallMapping($function, $bindArgs, $taint);
+			$this->processNodes($function->cfg->children, $scope, $nodeCallback);
+
+			$funcCallResult = new FuncCallResult($this->transitionFunction);
+			$taint = $this->collectTaintsOfSubgraph($function->cfg, $funcCallResult);
+
+			$this->funcCallStorage->put($call, new FuncCallMapping($function, $bindArgs, $funcCallResult, $funcCallResult->getTaint()));
+
+//			$currentScope = $scope->leaveFuncCall();
 		}
 
 		$call->setAttribute(Taint::ATTR, $taint);
+
+		return $currentScope;
 	}
 
 	private function lookForFuncCalls(Operand\Temporary $arg): int
@@ -416,13 +424,7 @@ class NodeScopeResolver
 
 	private function findFuncCallMapping(Func $function, array $bindArgs): ?FuncCallMapping
 	{
-		foreach ($this->funcCallMappings as $mapping) {
-			if ($mapping->match($function, $bindArgs)) {
-				return $mapping;
-			}
-		}
-
-		return null;
+		return $this->funcCallStorage->findMapping($function, $bindArgs);
 	}
 
 	private function processIf(Op\Stmt\JumpIf $op, Scope $scope, callable $nodeCallback): Scope
@@ -431,6 +433,45 @@ class NodeScopeResolver
 		$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op);
 
 		return $scope;
+	}
+
+	private function collectTaintsOfSubgraph(Block $cfg, FuncCallResult $funcCallResult, FuncCallPath $parent = null): int
+	{
+		$taint = Taint::UNKNOWN;
+		foreach ($cfg->children as $op) {
+			if ($op instanceof Op\Terminal\Return_) {
+				$taint = $this->transitionFunction->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
+				$path = new FuncCallPath($parent, $op, FuncCallPath::EVAL_UNCONDITIONAL);
+				$path->setTaint($taint);
+				if ($parent === null) {
+					$funcCallResult->addPath($path);
+				}
+			} elseif ($op instanceof Op\Stmt\Jump) {
+				$path = new FuncCallPath($parent, $op, FuncCallPath::EVAL_UNCONDITIONAL);
+				$path->setTaint($this->collectTaintsOfSubgraph($op->target, $funcCallResult, $path));
+				if ($parent === null) {
+					$funcCallResult->addPath($path);
+				}
+
+				$taint = $this->transitionFunction->leastUpperBound($taint, $path->getTaint());
+			} elseif ($op instanceof Op\Stmt\JumpIf) {
+				$ifPath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_TRUE);
+				$ifPath->setTaint($this->collectTaintsOfSubgraph($op->if, $funcCallResult, $ifPath));
+				$taint = $this->transitionFunction->leastUpperBound($taint, $ifPath->getTaint());
+				if ($parent === null) {
+					$funcCallResult->addPath($ifPath);
+				}
+
+				$elsePath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_FALSE);
+				$elsePath->setTaint($this->collectTaintsOfSubgraph($op->else, $funcCallResult, $elsePath));
+				$taint = $this->transitionFunction->leastUpperBound($taint, $elsePath->getTaint());
+				if ($parent === null) {
+					$funcCallResult->addPath($elsePath);
+				}
+			}
+		}
+
+		return $taint;
 	}
 
 }

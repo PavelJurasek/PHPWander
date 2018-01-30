@@ -91,3 +91,4 @@ services:
 	cachedParser: PHPWander\Parser\CachedParser(@wanderDirectParser)
 
 	- PHPWander\Analyser\BlockScopeStorage
+	- PHPWander\Analyser\FuncCallStorage

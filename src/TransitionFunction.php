@@ -184,6 +184,11 @@ class TransitionFunction
 		return $scope;
 	}
 
+	public function isTainted(int $taint): bool
+	{
+		return $taint === Taint::TAINTED || $taint === Taint::BOTH;
+	}
+
 	private function setAttributes(Op $node, array $attributes): void
 	{
 		foreach ($attributes as $key => $value) {

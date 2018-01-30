@@ -3,6 +3,10 @@
 namespace PHPWander\Analyser;
 
 use PHPCfg\Block;
+use PHPCfg\Func;
+use PHPCfg\Op\Expr;
+use PHPCfg\Op\Expr\FuncCall;
+use PHPCfg\Op\Expr\NsFuncCall;
 use PHPCfg\Op\Stmt;
 use PHPCfg\Operand\Temporary;
 use PHPWander\Taint;
@@ -38,6 +42,15 @@ class Scope
 	/** @var Stmt[] */
 	private $statementStack = [];
 
+	/** @var Func|null */
+	private $func;
+
+	/** @var FuncCall|NsFuncCall|null */
+	private $funcCall;
+
+	/**
+	 * @param FuncCall|NsFuncCall|null $funcCall
+	 */
 	public function __construct(
 		TransitionFunction $transitionFunction,
 		string $file,
@@ -46,8 +59,14 @@ class Scope
 		array $variablesTaints = [],
 		array $temporaries = [],
 		array $blocks = [],
-		array $statementStack = []
+		array $statementStack = [],
+		Func $func = null,
+		Expr $funcCall = null
 	) {
+		if ($funcCall !== null) {
+			$this->assertFuncCallArgument($funcCall);
+		}
+
 		$this->transitionFunction = $transitionFunction;
 		$this->file = $file;
 		$this->analysedContextFile = $analysedContextFile !== null ? $analysedContextFile : $file;
@@ -56,6 +75,8 @@ class Scope
 		$this->temporaries = $temporaries;
 		$this->blocks = $blocks;
 		$this->statementStack = $statementStack;
+		$this->func = $func;
+		$this->funcCall = $funcCall;
 	}
 
 	public function getFile(): string
@@ -88,7 +109,7 @@ class Scope
 			$statements[$this->hash($block)] = $stmt;
 		}
 
-		$scope = new self(
+		return new self(
 			$this->transitionFunction,
 			$this->file,
 			$this->getFile(),
@@ -98,8 +119,6 @@ class Scope
 			$blocks,
 			$statements
 		);
-
-		return $scope;
 	}
 
 	public function getCurrentBlock(): Block
@@ -257,7 +276,12 @@ class Scope
 	{
 		$descriptions = [];
 		foreach ($this->getVariableTaints() as $name => $variableTaint) {
-			$descriptions[sprintf('$%s', $name)] = $variableTaint->describe();
+			$descriptions[sprintf('$%s', $name)] = [
+				Taint::UNKNOWN => 'unknown',
+				Taint::UNTAINTED => 'untainted',
+				Taint::TAINTED => 'tainted',
+				Taint::BOTH => 'both',
+			][$variableTaint];
 		}
 
 		return $descriptions;
@@ -276,6 +300,39 @@ class Scope
 	private function hash($object): string
 	{
 		return substr(md5(spl_object_hash($object)), 0, 4);
+	}
+
+	/**
+	 * @param FuncCall|NsFuncCall $call
+	 */
+	public function enterFuncCall(Func $func, $call): self
+	{
+		$this->assertFuncCallArgument($call);
+
+		return new self(
+			$this->transitionFunction,
+			$this->file,
+			$this->getFile(),
+			$this,
+			$this->variableTaints,
+			$this->getTemporaryTaints(),
+			$this->blocks,
+			$this->statementStack,
+			$func,
+			$call
+		);
+	}
+
+	public function leaveFuncCall(): self
+	{
+		return $this->parentScope;
+	}
+
+	private function assertFuncCallArgument($call): void
+	{
+		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall) {
+			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall or NsFuncCall, %s', __METHOD__, get_class($call)));
+		}
 	}
 
 }

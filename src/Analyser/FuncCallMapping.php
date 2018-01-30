@@ -16,13 +16,17 @@ class FuncCallMapping
 	/** @var array of argName => taint */
 	private $argTaints;
 
+	/** @var FuncCallResult */
+	private $funcCallResult;
+
 	/** @var int */
 	private $taint;
 
-	public function __construct(Func $func, array $argTaints, int $taint)
+	public function __construct(Func $func, array $argTaints, FuncCallResult $funcCallResult, int $taint)
 	{
 		$this->func = $func;
 		$this->argTaints = $argTaints;
+		$this->funcCallResult = $funcCallResult;
 		$this->taint = $taint;
 	}
 
@@ -34,6 +38,11 @@ class FuncCallMapping
 	public function getArgTaints(): array
 	{
 		return $this->argTaints;
+	}
+
+	public function getFuncCallResult(): FuncCallResult
+	{
+		return $this->funcCallResult;
 	}
 
 	public function getTaint(): int

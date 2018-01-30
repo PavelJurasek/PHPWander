@@ -6,6 +6,7 @@ use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Literal;
 use PHPWander\Analyser\BlockScopeStorage;
+use PHPWander\Analyser\FuncCallStorage;
 use PHPWander\Analyser\Scope;
 use PHPWander\Taint;
 
@@ -24,9 +25,9 @@ class FuncCall extends AbstractRule implements Rule
 	/** @var array */
 	private $sanitizers;
 
-	public function __construct(BlockScopeStorage $blockScopeStorage, string $functionName, array $args, array $sanitizers)
+	public function __construct(BlockScopeStorage $blockScopeStorage, FuncCallStorage $funcCallStorage, string $functionName, array $args, array $sanitizers)
 	{
-		parent::__construct($blockScopeStorage);
+		parent::__construct($blockScopeStorage, $funcCallStorage);
 
 		$this->functionName = $functionName;
 		$this->args = $args;

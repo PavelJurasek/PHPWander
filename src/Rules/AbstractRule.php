@@ -5,6 +5,8 @@ namespace PHPWander\Rules;
 use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPWander\Analyser\BlockScopeStorage;
+use PHPWander\Analyser\FuncCallPath;
+use PHPWander\Analyser\FuncCallStorage;
 use PHPWander\Analyser\Helpers;
 use PHPWander\Analyser\Scope;
 use PHPWander\Taint;
@@ -18,35 +20,47 @@ abstract class AbstractRule
 	/** @var BlockScopeStorage */
 	private $blockScopeStorage;
 
-	public function __construct(BlockScopeStorage $blockScopeStorage)
+	/** @var FuncCallStorage */
+	private $funcCallStorage;
+
+	public function __construct(BlockScopeStorage $blockScopeStorage, FuncCallStorage $funcCallStorage)
 	{
 		$this->blockScopeStorage = $blockScopeStorage;
+		$this->funcCallStorage = $funcCallStorage;
 	}
 
 	protected function describeOp(Op $op, Scope $scope): string
 	{
 		if ($op instanceof Op\Expr\Assign) {
-			return sprintf('assignment on line %d in file %s', $op->getLine(), $op->getFile());
+			$str = sprintf('assignment on line %d in file %s', $op->getLine(), $op->getFile());
+			$subOp = $op->expr;
 		} elseif ($op instanceof Op\Expr\ArrayDimFetch) {
-			return sprintf('%s[%s]', $this->unwrapOperand($op->var, $scope), $this->unwrapOperand($op->dim, $scope));
+			$str = sprintf('%s[%s]', $this->unwrapOperand($op->var, $scope), $this->unwrapOperand($op->dim, $scope));
 		} elseif ($op instanceof Op\Expr\FuncCall) {
-			return sprintf('function call to %s', $this->unwrapOperand($op->name, $scope));
+			$str = sprintf('function call to %s', $this->unwrapOperand($op->name, $scope));
+
+			foreach ($this->funcCallStorage->get($op)->getFuncCallResult()->getTaintingCallPaths() as $taintingCallPath) {
+				$str .= ' - (' . $this->describeFuncCallPath($taintingCallPath, $scope) . ')';
+			}
 		} elseif ($op instanceof Op\Expr\PropertyFetch) {
-			return sprintf('property $%s', Helpers::unwrapOp($op));
+			$str = sprintf('property $%s', Helpers::unwrapOp($op));
 //			return $this->describeOp($op->var->ops[0]);
-		}
+		} elseif ($op instanceof Op\Stmt\JumpIf) {
+			$str = sprintf('if %s', $this->describeOperand($op->cond, $scope));
+		} elseif ($op instanceof Op\Stmt\Jump) {
+//			$str = sprintf('jump');
+			$blockScope = $this->blockScopeStorage->get($op->target);
 
-		if ($op instanceof Op\Stmt\JumpIf) {
-			return sprintf('if %s', $this->describeOperand($op->cond, $scope));
-		}
+			$str = '';
+			foreach ($op->target->children as $_op) {
+				$str .= $this->describeOp($_op, $blockScope);
+			}
 
-		if ($op instanceof Op\Expr\BinaryOp\Concat) {
-			return sprintf('concat of %s and %s on line %s in file %s', $this->describeOperand($op->left, $scope), $this->describeOperand($op->right, $scope), $op->getLine(), $op->getFile());
+		} elseif ($op instanceof Op\Expr\BinaryOp\Concat) {
+			$str = sprintf('concat of %s and %s on line %s in file %s', $this->describeOperand($op->left, $scope), $this->describeOperand($op->right, $scope), $op->getLine(), $op->getFile());
 		} elseif ($op instanceof Op\Expr\BinaryOp) {
-			return sprintf('%s %s %s', $this->describeOperand($op->left, $scope), $this->resolveBinaryOp($op), $this->describeOperand($op->right, $scope));
-		}
-
-		if ($op instanceof Op\Phi) {
+			$str = sprintf('%s %s %s', $this->describeOperand($op->left, $scope), $this->resolveBinaryOp($op), $this->describeOperand($op->right, $scope));
+		} elseif ($op instanceof Op\Phi) {
 			$parentBlock = $scope->getParentBlock();
 
 			if ($parentBlock === null) {
@@ -72,11 +86,26 @@ abstract class AbstractRule
 			for ($i = 1; $i < count($op->vars); $i++) {
 				$str .= sprintf(', %s', $this->describeOperand($op->vars[$i], $scope));
 			}
-
-			return $str;
+		} elseif ($op instanceof Op\Terminal\Return_) {
+			$str = sprintf('return %s', $this->describeOperand($op->expr, $scope));
 		}
 
-		return '?';
+		if (!isset($str)) {
+			dump(__METHOD__);
+			return '?';
+		}
+
+		if (isset($subOp)) {
+			if ($subOp instanceof Operand) {
+				$str .= ' - ' . $this->describeOperand($subOp, $scope);
+			} elseif (in_array('ops', $subOp->getVariableNames(), true)) {
+				foreach ($subOp->ops as $_op) {
+					$str .= ' - ' . $this->describeOp($_op, $scope);
+				}
+			}
+		}
+
+		return $str;
 	}
 
 	protected function decideOpsTaint(array $ops): int
@@ -109,6 +138,7 @@ abstract class AbstractRule
 			}
 		}
 
+		dump(__METHOD__);
 		return '?';
 	}
 
@@ -128,6 +158,7 @@ abstract class AbstractRule
 			return $this->describeOp($op, $scope);
 		}
 
+		dump(__METHOD__);
 		return '?';
 	}
 
@@ -188,6 +219,25 @@ abstract class AbstractRule
 			default:
 				return 'unknown';
 		}
+	}
+
+	private function describeFuncCallPath(FuncCallPath $taintingCallPath, Scope $scope): string
+	{
+		if ($taintingCallPath->getStatement() instanceof Op\Stmt\JumpIf) {
+			$str = sprintf('%s%s', $taintingCallPath->getEvaluation() === FuncCallPath::EVAL_FALSE ? 'not ' : '', $this->describeOp($taintingCallPath->getStatement(), $scope));
+
+			foreach ($taintingCallPath->getChildren() as $child) {
+				if ($this->isTainted($child->getTaint())) {
+					$str .= ' - ' . $this->describeFuncCallPath($child, $scope);
+				}
+			}
+		} elseif ($taintingCallPath->getStatement() instanceof Op\Terminal\Return_) {
+			$str = sprintf('return %s', $this->describeOperand($taintingCallPath->getStatement()->expr, $scope));
+		} elseif ($taintingCallPath->getStatement() instanceof Op\Stmt\Jump) {
+			$str = $this->describeOp($taintingCallPath->getStatement(), $scope);
+		}
+
+		return $str;
 	}
 
 }
