@@ -7,7 +7,7 @@ use PHPCfg\Script;
 class CachedParser implements Parser
 {
 
-	/** @var \PHPStan\Parser\Parser */
+	/** @var Parser */
 	private $originalParser;
 
 	/** @var mixed[] */
@@ -33,7 +33,7 @@ class CachedParser implements Parser
 	public function parseString(string $sourceCode, string $file): Script
 	{
 		if (!isset($this->cachedNodesByString[$sourceCode])) {
-			$this->cachedNodesByString[$sourceCode] = $this->originalParser->parseString($sourceCode);
+			$this->cachedNodesByString[$sourceCode] = $this->originalParser->parseString($sourceCode, $file);
 		}
 
 		return $this->cachedNodesByString[$sourceCode];

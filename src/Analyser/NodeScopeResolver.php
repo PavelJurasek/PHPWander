@@ -363,20 +363,6 @@ class NodeScopeResolver
 		die;
 	}
 
-	private function updateScopeForVariableAssign(Scope $scope, Op $node): Scope
-	{
-		if ($node instanceof Assign) {
-			$scope = $this->processAssign($scope, $node);
-
-			return $scope;
-		}
-
-		dump($node);
-		die;
-
-		return $scope;
-	}
-
 	private function isExprResolvable($expr): bool
 	{
 		if ($expr instanceof Operand\Literal) {

@@ -21,10 +21,6 @@ class Helpers
 				return self::unwrapOperand($operand->original);
 			}
 
-//			if ($operand->ops[0] instanceof PropertyFetch) {
-//
-//			}
-
 			foreach ($operand->ops as $op) {
 				return self::unwrapOp($op);
 			}
@@ -36,8 +32,7 @@ class Helpers
 			return self::unwrapOperand($operand->name);
 		}
 
-//		$name = '?';
-		return $operand->name;
+		return '?';
 	}
 
 	public static function unwrapOp(Op $op): string

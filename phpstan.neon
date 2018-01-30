@@ -5,6 +5,7 @@ parameters:
 
 	excludes_analyse:
 		- src/index.php
+		- src/Broker/Broker.php
 
 #includes:
 #	- vendor/phpstan/phpstan-nette/extension.neon

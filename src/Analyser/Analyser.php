@@ -75,7 +75,7 @@ class Analyser
 	}
 
 	/**
-	 * @param string[] $files
+	 * @param string[] $filesOrPaths
 	 * @return string[]|\PHPStan\Analyser\Error[] errors
 	 */
 	public function analyse(array $filesOrPaths, \Closure $progressCallback = null): array
@@ -138,9 +138,6 @@ class Analyser
 					$script,
 					new Scope($this->transitionFunction, $file),
 					function (Op $node, Scope $scope) use (&$fileErrors) {
-						if ($node instanceof \PhpParser\Node\Stmt\Trait_) {
-							return;
-						}
 						$classes = array_merge([get_class($node)], class_parents($node));
 						foreach ($this->registry->getRules($classes) as $rule) {
 							$ruleErrors = $this->createErrors(

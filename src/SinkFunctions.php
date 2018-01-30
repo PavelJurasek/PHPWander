@@ -16,7 +16,7 @@ class SinkFunctions implements IConfiguration
 	/** @var Configuration */
 	private $inner;
 
-	/** @var string[] */
+	/** @var iterable */
 	private $flat;
 
 	public function __construct(Configuration $inner)
