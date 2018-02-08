@@ -95,7 +95,25 @@ class Scope
 			$this->transitionFunction,
 			$file,
 			$this->getFile(),
-			$this
+			$this,
+			$this->getVariableTaints(),
+			$this->getTemporaryTaints(),
+			$this->blocks,
+			$this->statementStack
+		);
+	}
+
+	public function leaveFile(): self
+	{
+		return new self(
+			$this->transitionFunction,
+			$this->parentScope->getFile(),
+			$this->parentScope->getAnalysedContextFile(),
+			$this->parentScope,
+			$this->getVariableTaints(),
+			$this->getTemporaryTaints(),
+			$this->blocks,
+			$this->statementStack
 		);
 	}
 
@@ -321,6 +339,11 @@ class Scope
 			$func,
 			$call
 		);
+	}
+
+	public function isInFuncCall(): bool
+	{
+		return $this->funcCall !== null;
 	}
 
 	public function leaveFuncCall(): self

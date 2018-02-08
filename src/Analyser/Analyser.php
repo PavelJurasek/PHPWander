@@ -128,9 +128,13 @@ class Analyser
 			return !$this->fileExcluder->isExcludedFromAnalysing($file);
 		});
 
-		$this->nodeScopeResolver->setAnalysedFiles($files);
 		foreach ($files as $file) {
 			try {
+				if ($this->nodeScopeResolver->isFileAnalysed($file)) {
+					continue;
+				}
+
+				$this->nodeScopeResolver->addAnalysedFile($file);
 				$script = $this->parser->parseFile($file);
 
 				$fileErrors = [];
@@ -142,7 +146,7 @@ class Analyser
 						foreach ($this->registry->getRules($classes) as $rule) {
 							$ruleErrors = $this->createErrors(
 								$node,
-								$scope->getAnalysedContextFile(),
+								$scope->getFile(),
 								$rule->processNode($node, $scope)
 							);
 							$fileErrors = array_merge($fileErrors, $ruleErrors);

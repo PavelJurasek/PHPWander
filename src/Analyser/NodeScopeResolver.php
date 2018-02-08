@@ -41,7 +41,7 @@ class NodeScopeResolver
 	private $earlyTerminatingMethodCalls;
 
 	/** @var bool[] filePath(string) => bool(true) */
-	private $analysedFiles;
+	private $analysedFiles = [];
 
 	/** @var Func[] */
 	private $functions;
@@ -80,6 +80,16 @@ class NodeScopeResolver
 	public function setAnalysedFiles(array $files): void
 	{
 		$this->analysedFiles = array_fill_keys($files, true);
+	}
+
+	public function addAnalysedFile(string $file): void
+	{
+		$this->analysedFiles[$file] = true;
+	}
+
+	public function isFileAnalysed(string $file): bool
+	{
+		return array_key_exists($file, $this->analysedFiles);
 	}
 
 	public function processScript(
@@ -172,9 +182,9 @@ class NodeScopeResolver
 			$taint = $this->transitionFunction->transferOp($scope, $op, true);
 			$op->setAttribute(Taint::ATTR, $taint);
 
-//			if (!$scope->isInClass() && $scope->getFunction() === null) {
-//				$scope->setResultTaint($taint);
-//			}
+			if (!$scope->isInFuncCall()) {
+				$scope->setResultTaint($taint);
+			}
 		} elseif ($op instanceof Op\Expr\Cast) {
 			$scope = $this->transitionFunction->transferCast($scope, $op);
 		}
@@ -300,14 +310,17 @@ class NodeScopeResolver
 			if ($this->isExprResolvable($op->expr)) {
 				$file = $this->resolveIncludedFile($op->expr);
 
-				if (is_file($file) && $file !== $scope->getFile()) {
+				if (is_file($file) && !array_key_exists($file, $this->analysedFiles)) {
+					$this->addAnalysedFile($file);
 					$scriptScope = $this->processScript(
 						$this->parser->parseFile($file),
 						$scope->enterFile($file),
 						$nodeCallback
 					);
 
-					$taint = $scope->getResultTaint();
+					$scope = $scriptScope->leaveFile();
+
+					$taint = $scriptScope->getResultTaint();
 					$threats = ['result'];
 
 					$op->setAttribute(Taint::ATTR, $taint);
