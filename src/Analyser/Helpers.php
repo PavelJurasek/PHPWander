@@ -39,26 +39,18 @@ class Helpers
 	{
 		if ($op instanceof PropertyFetch) {
 			return sprintf('$%s->%s', self::unwrapOperand($op->var), self::unwrapOperand($op->name));
-		}
-
-		if ($op instanceof FuncCall) {
+		} elseif ($op instanceof FuncCall) {
 			return sprintf('%s(%s)', self::unwrapOperand($op->name), self::unwrapList($op->args));
-		}
-
-		if ($op instanceof Op\Expr\MethodCall) {
+		} elseif ($op instanceof Op\Expr\MethodCall) {
 			return sprintf('$%s->%s(%s)', self::unwrapOperand($op->var), self::unwrapOperand($op->name), self::unwrapList($op->args));
-		}
-
-		if ($op instanceof Op\Expr\Assign) {
+		} elseif ($op instanceof Op\Expr\Assign) {
 			return sprintf('%s = %s', self::unwrapOperand($op->var), self::unwrapOperand($op->expr));
-		}
-
-		if ($op instanceof Op\Expr\ConcatList) {
+		} elseif ($op instanceof Op\Expr\ConcatList) {
 			return self::unwrapList($op->list);
-		}
-
-		if ($op instanceof Op\Expr\Cast) {
+		} elseif ($op instanceof Op\Expr\Cast) {
 			return self::unwrapCast($op);
+		} elseif ($op instanceof Op\Expr\ArrayDimFetch) {
+			return sprintf('$%s[%s]', self::unwrapOperand($op->var), self::unwrapOperand($op->dim));
 		}
 
 		dump($op);
