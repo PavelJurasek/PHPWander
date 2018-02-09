@@ -5,4 +5,5 @@ $b = basename($a);
 
 include __DIR__ . '/' . $b;
 
+// ok
 echo $b;

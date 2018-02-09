@@ -23,5 +23,8 @@ class A
 
 $a = new A($_GET);
 
-echo $a->getSource('a'); // tainted
-echo (int) $a->getSource('a'); // ok
+// tainted
+echo $a->getSource('a');
+
+// ok
+echo (int) $a->getSource('a');
