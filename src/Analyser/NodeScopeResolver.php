@@ -200,6 +200,10 @@ class NodeScopeResolver
 			}
 		} elseif ($op instanceof Op\Expr\Cast) {
 			$scope = $this->transitionFunction->transferCast($scope, $op);
+		} elseif ($op instanceof Op\Expr\MethodCall) {
+			dump(__METHOD__);
+			dump($op);
+			die;
 		}
 
 		$nodeCallback($op, $scope);
