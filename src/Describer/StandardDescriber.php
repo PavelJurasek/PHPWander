@@ -81,7 +81,7 @@ class StandardDescriber implements Describer
 			foreach ($node->vars as $var) {
 				foreach ($parentBlock->children as $child) {
 					if (in_array($child, $var->ops, true)) {
-						return $stmt ? sprintf('%s (%s)', $this->describeOperand($var, $scope), $this->describeOp($stmt, $scope)) : $this->describeOperand($var, $scope);
+						return $stmt ? sprintf('%s (%s)', $this->describeOperand($var, $scope), $this->describe($stmt, $scope)) : $this->describeOperand($var, $scope);
 					}
 				}
 			}
@@ -143,7 +143,7 @@ class StandardDescriber implements Describer
 	{
 		$str = '';
 		if ($taintingCallPath->getStatement() instanceof Op\Stmt\JumpIf) {
-			$str = sprintf('%s%s', $taintingCallPath->getEvaluation() === FuncCallPath::EVAL_FALSE ? 'not ' : '', $this->describeOp($taintingCallPath->getStatement(), $scope));
+			$str = sprintf('%s%s', $taintingCallPath->getEvaluation() === FuncCallPath::EVAL_FALSE ? 'not ' : '', $this->describe($taintingCallPath->getStatement(), $scope));
 
 			foreach ($taintingCallPath->getChildren() as $child) {
 				if ($this->isTainted($child->getTaint())) {

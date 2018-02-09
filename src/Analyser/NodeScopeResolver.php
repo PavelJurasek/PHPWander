@@ -47,7 +47,7 @@ class NodeScopeResolver
 	/** @var bool[] filePath(string) => bool(true) */
 	private $analysedFiles = [];
 
-	/** @var bool[] filePath(string) => int */
+	/** @var int[] filePath(string) => int */
 	private $includedFilesResults = [];
 
 	/** @var Func[] */
