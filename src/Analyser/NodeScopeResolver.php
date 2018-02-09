@@ -114,7 +114,7 @@ class NodeScopeResolver
 			$this->functions[$function->name] = $function;
 		}
 
-		$scope = $this->processNodes($script->main->cfg->children, $scope, $opCallback);
+		$scope = $this->processBlock($script->main->cfg, $scope, $opCallback);
 
 		return $scope;
 	}
