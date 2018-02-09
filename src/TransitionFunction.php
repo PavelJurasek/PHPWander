@@ -5,12 +5,6 @@ namespace PHPWander;
 use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Literal;
-use PHPStan\Type\BooleanType;
-use PHPStan\Type\IntegerType;
-use PHPStan\Type\ObjectType;
-use PHPStan\Type\StringType;
-use PHPStan\Type\Type;
-use PHPWander\Analyser\Helpers;
 use PHPWander\Broker\Broker;
 use PHPWander\Analyser\Scope;
 use PHPWander\Printer\Printer;
@@ -255,21 +249,6 @@ class TransitionFunction
 		}
 
 		return Taint::TAINTED;
-	}
-
-	private function transferType(Type $type): int
-	{
-		if ($type instanceof BooleanType) {
-			return Taint::UNTAINTED;
-		} elseif ($type instanceof IntegerType) {
-			return Taint::UNTAINTED;
-		} elseif ($type instanceof StringType) {
-			return Taint::TAINTED;
-		} elseif ($type instanceof ObjectType) {
-
-		}
-
-		return Taint::UNKNOWN;
 	}
 
 }
