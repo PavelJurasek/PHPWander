@@ -230,7 +230,7 @@ class Scope
 				return $this->parentScope->getVariableTaint($variableName);
 			}
 
-			throw new UndefinedVariable($this, $variableName);
+			return Taint::UNKNOWN;
 		}
 
 		return $this->variableTaints[$variableName];
