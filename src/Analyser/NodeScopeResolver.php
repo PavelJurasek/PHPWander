@@ -13,11 +13,15 @@ use PHPCfg\Op\Expr\Assign;
 use PHPCfg\Op\Expr\BinaryOp;
 use PHPWander\Broker\Broker;
 use PHPStan\File\FileHelper;
+use PHPWander\Printer\Printer;
 use PHPWander\Taint;
 use PHPWander\TransitionFunction;
 
 class NodeScopeResolver
 {
+
+	/** @var Printer */
+	private $printer;
 
 	/** @var TransitionFunction */
 	private $transitionFunction;
@@ -53,6 +57,7 @@ class NodeScopeResolver
 	private $funcCallStorage;
 
 	public function __construct(
+		Printer $printer,
 		BlockScopeStorage $blockScopeStorage,
 		FuncCallStorage $funcCallStorage,
 		Broker $broker,
@@ -64,6 +69,7 @@ class NodeScopeResolver
 		array $earlyTerminatingMethodCalls = []
 	)
 	{
+		$this->printer = $printer;
 		$this->blockScopeStorage = $blockScopeStorage;
 		$this->funcCallStorage = $funcCallStorage;
 		$this->broker = $broker;
@@ -115,6 +121,10 @@ class NodeScopeResolver
 		$blockScope = $scope->enterBlock($block, $stmt, $negated);
 		$this->blockScopeStorage->put($block, $blockScope);
 
+		if ($stmt) {
+			$stmt->setAttribute('block', $blockScope);
+		}
+
 		$blockScope = $this->processNodes($block->children, $blockScope, $opCallback);
 
 		return $blockScope->leaveBlock();
@@ -134,7 +144,7 @@ class NodeScopeResolver
 	private function processNode(Op $op, Scope $scope, \Closure $nodeCallback): Scope
 	{
 		if ($op instanceof Op\Expr\New_) {
-			$name = Helpers::unwrapOperand($op->class);
+			$name = $this->printer->printOperand($op->class, $scope);
 			$op->setAttribute('type', $name);
 
 		} elseif ($op instanceof Op\Stmt\Jump) {
@@ -155,7 +165,7 @@ class NodeScopeResolver
 			$scope = $this->processAssign($scope, $op);
 
 		} elseif ($op instanceof Op\Expr\FuncCall) {
-			$funcName = Helpers::unwrapOperand($op->name);
+			$funcName = $this->printer->printOperand($op->name, $scope);
 			if (array_key_exists($funcName, $this->functions)) {
 				$this->processFunctionCall($this->functions[$funcName], $op, $scope, $nodeCallback);
 			} else {
@@ -196,7 +206,7 @@ class NodeScopeResolver
 
 	private function processAssign(Scope $scope, Assign $op): Scope
 	{
-		$name = Helpers::unwrapOperand($op->var);
+		$name = $this->printer->printOperand($op->var, $scope);
 
 		if ($op->expr instanceof Operand\Temporary) {
 			foreach ($op->expr->ops as $_op) {
@@ -229,8 +239,8 @@ class NodeScopeResolver
 				/** @var Operand\Variable $variable */
 				$variable = $op->var->original;
 
-				if ($this->transitionFunction->isSuperGlobal($variable)) {
-					$taint = $this->transitionFunction->transferSuperGlobal($variable, $this->unpackExpression($op->dim));
+				if ($this->transitionFunction->isSuperGlobal($variable, $scope)) {
+					$taint = $this->transitionFunction->transferSuperGlobal($variable, $this->unpackExpression($op->dim, $scope));
 					$op->setAttribute(Taint::ATTR, $taint);
 				} else {
 					$taint = $this->transitionFunction->transfer($scope, $variable);
@@ -258,9 +268,9 @@ class NodeScopeResolver
 			$arg = $call->args[$i];
 
 			if ($arg instanceof Operand\Temporary && $arg->original instanceof Operand\Variable) {
-				$bindArgs[Helpers::unwrapOperand($param->name)] = $scope->getVariableTaint(Helpers::unwrapOperand($arg));
+				$bindArgs[$this->printer->print($param, $scope)] = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
 			} else { // func call?
-				$bindArgs[Helpers::unwrapOperand($param->name)] = $this->lookForFuncCalls($arg);
+				$bindArgs[$this->printer->print($param, $scope)] = $this->lookForFuncCalls($arg);
 			}
 		}
 
@@ -281,7 +291,9 @@ class NodeScopeResolver
 			$funcCallResult = new FuncCallResult($this->transitionFunction);
 			$taint = $this->collectTaintsOfSubgraph($function->cfg, $funcCallResult);
 
-			$this->funcCallStorage->put($call, new FuncCallMapping($function, $bindArgs, $funcCallResult, $funcCallResult->getTaint()));
+			$mapping = new FuncCallMapping($function, $bindArgs, $funcCallResult, $funcCallResult->getTaint());
+			$this->funcCallStorage->put($call, $mapping);
+			$call->setAttribute('mapping', $mapping);
 
 //			$currentScope = $scope->leaveFuncCall();
 		}
@@ -326,7 +338,7 @@ class NodeScopeResolver
 					$op->setAttribute(Taint::ATTR, $taint);
 					$op->setAttribute(Taint::ATTR_THREATS, $threats);
 				}
-			} elseif ($this->isSafeForFileInclusion($op->expr)) {
+			} elseif ($this->isSafeForFileInclusion($op->expr, $scope)) {
 				$taint = Taint::UNTAINTED;
 				$threats = ['file'];
 
@@ -351,10 +363,10 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function resolveIncludedFile(Operand\Temporary $expr): string
+	private function resolveIncludedFile(Operand\Temporary $expr, Scope $scope): string
 	{
 		if (!empty($expr->ops)) {
-			return $this->unpackExpression($expr->ops[0]);
+			return $this->unpackExpression($expr->ops[0], $scope);
 		}
 
 		dump('?');
@@ -364,20 +376,20 @@ class NodeScopeResolver
 		return '?';
 	}
 
-	private function unpackExpression($expr): string
+	private function unpackExpression($expr, Scope $scope): string
 	{
 		if ($expr instanceof BinaryOp\Concat) {
-			return $this->unpackExpression($expr->left) . $this->unpackExpression($expr->right);
+			return $this->unpackExpression($expr->left, $scope) . $this->unpackExpression($expr->right, $scope);
 		} elseif ($expr instanceof Assign) {
-			return $this->unpackExpression($expr->expr);
+			return $this->unpackExpression($expr->expr, $scope);
 		} elseif ($expr instanceof Operand\Temporary) {
 			if (!empty($expr->ops)) {
-				return $this->unpackExpression($expr->ops[0]);
+				return $this->unpackExpression($expr->ops[0], $scope);
 			}
 
-			return $this->unpackExpression($expr->original);
+			return $this->unpackExpression($expr->original, $scope);
 		} elseif ($expr instanceof Operand) {
-			return Helpers::unwrapOperand($expr);
+			return $this->printer->printOperand($expr, $scope);
 		}
 
 		dump($expr);
@@ -410,26 +422,26 @@ class NodeScopeResolver
 		return false;
 	}
 
-	private function isSafeForFileInclusion($expr): bool
+	private function isSafeForFileInclusion($expr, Scope $scope): bool
 	{
 		if ($expr instanceof Operand\Temporary) {
 			if (!empty($expr->ops)) {
-				return $this->isSafeForFileInclusion($expr->ops[0]);
+				return $this->isSafeForFileInclusion($expr->ops[0], $scope);
 			}
 
-			return $this->isSafeForFileInclusion($expr->original);
+			return $this->isSafeForFileInclusion($expr->original, $scope);
 		} elseif ($expr instanceof BinaryOp\Concat) {
-			return $this->isSafeForFileInclusion($expr->left) && $this->isSafeForFileInclusion($expr->right);
+			return $this->isSafeForFileInclusion($expr->left, $scope) && $this->isSafeForFileInclusion($expr->right, $scope);
 		} elseif ($expr instanceof Operand\Literal) {
 			return true;
 		} elseif ($expr instanceof Operand\Variable) {
 			if (!empty($expr->ops)) {
-				return $this->isSafeForFileInclusion($expr->ops[0]);
+				return $this->isSafeForFileInclusion($expr->ops[0], $scope);
 			}
 		} elseif ($expr instanceof Op\Expr\FuncCall) {
-			return $this->transitionFunction->isSanitizer($expr->name, 'file');
+			return $this->transitionFunction->isSanitizer($expr->name, $scope, 'file');
 		} elseif ($expr instanceof Assign) {
-			return $this->isSafeForFileInclusion($expr->expr);
+			return $this->isSafeForFileInclusion($expr->expr, $scope);
 		}
 
 		return false;

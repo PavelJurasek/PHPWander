@@ -13,6 +13,7 @@ use PHPStan\Type\Type;
 use PHPWander\Analyser\Helpers;
 use PHPWander\Broker\Broker;
 use PHPWander\Analyser\Scope;
+use PHPWander\Printer\Printer;
 
 /**
  * @author Pavel Jurásek
@@ -22,6 +23,9 @@ class TransitionFunction
 
 	/** @var Broker */
 	private $broker;
+
+	/** @var Printer */
+	private $printer;
 
 	/** @var SourceFunctions */
 	private $sourceFunctions;
@@ -37,12 +41,14 @@ class TransitionFunction
 
 	public function __construct(
 		Broker $broker,
+		Printer $printer,
 		SourceFunctions $sourceFunctions,
 		SinkFunctions $sinkFunctions,
 		SanitizerFunctions $sanitizerFunctions,
 		TaintFunctions $taintFunctions
 	) {
 		$this->broker = $broker;
+		$this->printer = $printer;
 		$this->sourceFunctions = $sourceFunctions;
 		$this->sinkFunctions = $sinkFunctions;
 		$this->sanitizerFunctions = $sanitizerFunctions;
@@ -56,7 +62,7 @@ class TransitionFunction
 		} elseif ($node instanceof Operand\Temporary) {
 			return $this->transferTemporary($scope, $node);
 		} elseif ($node instanceof Operand\Variable) {
-			return $scope->getVariableTaint($node->name->value);
+			return $scope->getVariableTaint($this->printer->printOperand($node, $scope));
 		}
 
 		dump($node);
@@ -91,7 +97,7 @@ class TransitionFunction
 
 		if ($op instanceof Op\Expr\FuncCall) {
 			if ($op->name instanceof Literal) {
-				$funcName = $op->name->value;
+				$funcName = $this->printer->printOperand($op->name, $scope);
 
 				$taintSection = $this->taintFunctions->getTaint($funcName);
 				if ($taintSection) {
@@ -168,7 +174,7 @@ class TransitionFunction
 		$trusted = false;
 
 		if ($op->expr->original instanceof Operand\Variable) {
-			$variableName = Helpers::unwrapOperand($op->expr->original);
+			$variableName = $this->printer->printOperand($op->expr->original, $scope);
 
 			$trusted = $scope->hasVariableTaint($variableName) && $scope->getVariableTaint($variableName) === Taint::UNTAINTED;
 		}
@@ -196,7 +202,7 @@ class TransitionFunction
 		}
 	}
 
-	public function isSource(Operand $operand, ?string $section = null): bool
+	public function isSource(Operand $operand, Scope $scope, ?string $section = null): bool
 	{
 		if ($section === null) {
 			$sources = $this->sourceFunctions->getAll();
@@ -204,10 +210,10 @@ class TransitionFunction
 			$sources = $this->sourceFunctions->getSection($section);
 		}
 
-		return in_array(Helpers::unwrapOperand($operand), $sources);
+		return in_array($this->printer->printOperand($operand, $scope), $sources);
 	}
 
-	public function isSink(Operand $operand, ?string $section = null): bool
+	public function isSink(Operand $operand, Scope $scope, ?string $section = null): bool
 	{
 		if ($section === null) {
 			$sources = $this->sinkFunctions->getAll();
@@ -215,10 +221,10 @@ class TransitionFunction
 			$sources = $this->sinkFunctions->getSection($section);
 		}
 
-		return in_array(Helpers::unwrapOperand($operand), $sources);
+		return in_array($this->printer->printOperand($operand, $scope), $sources);
 	}
 
-	public function isSanitizer(Operand $operand, ?string $section = null): bool
+	public function isSanitizer(Operand $operand, Scope $scope, ?string $section = null): bool
 	{
 		if ($section === null) {
 			$sources = $this->sanitizerFunctions->getAll();
@@ -226,7 +232,7 @@ class TransitionFunction
 			$sources = $this->sanitizerFunctions->getSection($section);
 		}
 
-		return in_array(Helpers::unwrapOperand($operand), $sources);
+		return in_array($this->printer->print($operand, $scope), $sources);
 	}
 
 	public function leastUpperBound(int $taint, int $transferOp): int
@@ -234,9 +240,9 @@ class TransitionFunction
 		return max($taint, $transferOp);
 	}
 
-	public function isSuperGlobal(Operand\Variable $variable): bool
+	public function isSuperGlobal(Operand\Variable $variable, Scope $scope): bool
 	{
-		return in_array(sprintf('$%s', $variable->name->value), $this->sourceFunctions->getSection('userinput'));
+		return in_array($this->printer->print($variable, $scope), $this->sourceFunctions->getSection('userinput'));
 	}
 
 	public function transferSuperGlobal(Operand\Variable $variable, string $dim): int

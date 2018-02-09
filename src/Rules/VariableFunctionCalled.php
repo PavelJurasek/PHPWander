@@ -28,11 +28,11 @@ class VariableFunctionCalled extends AbstractRule implements Rule
 	public function processNode(Op $node, Scope $scope): array
 	{
 		if ($node->name instanceof Operand\Variable) {
-			$name = $node->name->name->value;
+			$name = $this->printOperand($node->name, $scope);
 
 			if ($this->isTainted($scope->getVariableTaint($name))) {
 				return [
-					sprintf('Variable function is called on variable %s.', $this->unwrapOperand($node->name, $scope)),
+					sprintf('Variable function is called on variable %s.', $this->printOperand($node->name, $scope)),
 				];
 			}
 		}

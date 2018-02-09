@@ -92,3 +92,6 @@ services:
 
 	- PHPWander\Analyser\BlockScopeStorage
 	- PHPWander\Analyser\FuncCallStorage
+
+	- PHPWander\Printer\StandardPrinter
+	- PHPWander\Describer\StandardDescriber

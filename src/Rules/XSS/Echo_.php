@@ -5,7 +5,6 @@ namespace PHPWander\Rules\XSS;
 use PHPCfg\Op;
 use PHPCfg\Operand\Temporary;
 use PHPCfg\Operand\Variable;
-use PHPWander\Analyser\Helpers;
 use PHPWander\Analyser\Scope;
 use PHPWander\Rules\AbstractRule;
 use PHPWander\Rules\Rule;
@@ -33,7 +32,7 @@ class Echo_ extends AbstractRule implements Rule
 	{
 		if ($node->expr instanceof Temporary) {
 			if ($node->expr->original instanceof Variable) {
-				$variable = Helpers::unwrapOperand($node->expr);
+				$variable = $this->printOperand($node->expr, $scope);
 
 				if ($scope->getVariableTaint($variable) === Taint::TAINTED) {
 //				if (
@@ -45,7 +44,7 @@ class Echo_ extends AbstractRule implements Rule
 				}
 			}
 
-			$name = Helpers::unwrapOperand($node->expr);
+			$name = $this->printOperand($node->expr, $scope);
 
 			if ($scope->hasVariableTaint($name)) {
 				if ($this->isTainted($scope->getVariableTaint($name))) {

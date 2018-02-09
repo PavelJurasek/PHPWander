@@ -8,6 +8,7 @@ use PHPCfg\Operand\Literal;
 use PHPWander\Analyser\BlockScopeStorage;
 use PHPWander\Analyser\FuncCallStorage;
 use PHPWander\Analyser\Scope;
+use PHPWander\Describer\Describer;
 use PHPWander\Taint;
 
 /**
@@ -25,9 +26,9 @@ class FuncCall extends AbstractRule implements Rule
 	/** @var array */
 	private $sanitizers;
 
-	public function __construct(BlockScopeStorage $blockScopeStorage, FuncCallStorage $funcCallStorage, string $functionName, array $args, array $sanitizers)
+	public function __construct(Describer $describer, BlockScopeStorage $blockScopeStorage, FuncCallStorage $funcCallStorage, string $functionName, array $args, array $sanitizers)
 	{
-		parent::__construct($blockScopeStorage, $funcCallStorage);
+		parent::__construct($describer, $blockScopeStorage, $funcCallStorage);
 
 		$this->functionName = $functionName;
 		$this->args = $args;
@@ -82,7 +83,7 @@ class FuncCall extends AbstractRule implements Rule
 		}
 
 		if ($arg instanceof Operand\Variable) {
-			return $this->isTainted($scope->getVariableTaint($arg->name->value));
+			return $this->isTainted($scope->getVariableTaint($this->printOperand($arg, $scope)));
 		}
 
 		if ($arg instanceof Operand\Temporary) {
