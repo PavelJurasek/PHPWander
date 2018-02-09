@@ -229,6 +229,7 @@ abstract class AbstractRule
 
 	private function describeFuncCallPath(FuncCallPath $taintingCallPath, Scope $scope): string
 	{
+		$str = '';
 		if ($taintingCallPath->getStatement() instanceof Op\Stmt\JumpIf) {
 			$str = sprintf('%s%s', $taintingCallPath->getEvaluation() === FuncCallPath::EVAL_FALSE ? 'not ' : '', $this->describeOp($taintingCallPath->getStatement(), $scope));
 
