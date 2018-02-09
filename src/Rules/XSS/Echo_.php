@@ -41,9 +41,7 @@ class Echo_ extends AbstractRule implements Rule
 //					in_array('userinput', (array) $variable->ops[0]->getAttribute(Taint::ATTR_SOURCE), true) ||
 //					!in_array('xss', (array) $variable->ops[0]->getAttribute(Taint::ATTR_SANITIZE), true)
 //				) {
-					return [
-						sprintf('Echo is tainted by %s.', $this->describeOp($node->expr->ops[0], $scope)),
-					];
+					return [$this->describeTaint($node->expr->ops[0], $scope)];
 				}
 			}
 
@@ -51,9 +49,7 @@ class Echo_ extends AbstractRule implements Rule
 
 			if ($scope->hasVariableTaint($name)) {
 				if ($this->isTainted($scope->getVariableTaint($name))) {
-					return [
-						sprintf('Echo is tainted by %s.', $this->unwrapOperand($node->expr, $scope)),
-					];
+					return [$this->describeTaint($node->expr, $scope)];
 				}
 			}
 
@@ -61,15 +57,24 @@ class Echo_ extends AbstractRule implements Rule
 				/** @var Op $op */
 				foreach ($node->expr->ops as $op) {
 					if ($this->isTainted((int) $op->getAttribute(Taint::ATTR))) {
-						return [
-							sprintf('Echo is tainted by %s.', $this->describeOp($op, $scope)),
-						];
+						return [$this->describeTaint($op, $scope)];
 					}
 				}
 			}
 		}
 
 		return [];
+	}
+
+	private function describeTaint(Op $op, Scope $scope): string
+	{
+		$str = sprintf('Echo is tainted by %s', $this->describeOp($op, $scope));
+
+		foreach ($scope->getStatementStack() as $statement) {
+			$str .= sprintf(' %s%s', $scope->isNegated() ? 'not ': '', $this->describeOp($statement, $scope));
+		}
+
+		return $str . '.';
 	}
 
 }
