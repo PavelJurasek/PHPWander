@@ -146,9 +146,7 @@ class TransitionFunction
 
 //				return $this->transferType($type);
 			} elseif ($op->name instanceof Operand\Variable) {
-				dump(__METHOD__);
-				dump('var');
-				dump($op);
+				// func call on variable, will be handled by rule
 			} else {
 				dump(__METHOD__);
 				dump('?');
