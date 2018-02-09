@@ -110,9 +110,9 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processBlock(Block $block, Scope $scope, \Closure $opCallback, Op\Stmt $stmt = null): Scope
+	private function processBlock(Block $block, Scope $scope, \Closure $opCallback, Op\Stmt $stmt = null, bool $negated = false): Scope
 	{
-		$blockScope = $scope->enterBlock($block, $stmt);
+		$blockScope = $scope->enterBlock($block, $stmt, $negated);
 		$this->blockScopeStorage->put($block, $blockScope);
 
 		$blockScope = $this->processNodes($block->children, $blockScope, $opCallback);
@@ -138,7 +138,7 @@ class NodeScopeResolver
 			$op->setAttribute('type', $name);
 
 		} elseif ($op instanceof Op\Stmt\Jump) {
-			$scope = $this->processBlock($op->target, $scope, $nodeCallback);
+			$scope = $this->processBlock($op->target, $scope, $nodeCallback, null, $scope->isNegated());
 
 		} elseif ($op instanceof Op\Expr\Include_) {
 			$scope = $this->processInclude($scope, $op, $nodeCallback);
@@ -443,7 +443,7 @@ class NodeScopeResolver
 	private function processIf(Op\Stmt\JumpIf $op, Scope $scope, callable $nodeCallback): Scope
 	{
 		$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
-		$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op);
+		$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
 
 		return $scope;
 	}

@@ -55,7 +55,7 @@ abstract class AbstractRule
 //			$str = sprintf('jump');
 			$blockScope = $this->blockScopeStorage->get($op->target);
 
-			$str = '';
+			$str = $blockScope->isNegated() ? 'not ' : '';
 			foreach ($op->target->children as $_op) {
 				$str .= $this->describeOp($_op, $blockScope);
 			}

@@ -42,6 +42,9 @@ class Scope
 	/** @var Stmt[] */
 	private $statementStack = [];
 
+	/** @var bool */
+	private $negated = false;
+
 	/** @var Func|null */
 	private $func;
 
@@ -60,6 +63,7 @@ class Scope
 		array $temporaries = [],
 		array $blocks = [],
 		array $statementStack = [],
+		bool $negated = false,
 		Func $func = null,
 		Expr $funcCall = null
 	) {
@@ -75,6 +79,7 @@ class Scope
 		$this->temporaries = $temporaries;
 		$this->blocks = $blocks;
 		$this->statementStack = $statementStack;
+		$this->negated = $negated;
 		$this->func = $func;
 		$this->funcCall = $funcCall;
 	}
@@ -99,7 +104,8 @@ class Scope
 			$this->getVariableTaints(),
 			$this->getTemporaryTaints(),
 			$this->blocks,
-			$this->statementStack
+			$this->statementStack,
+			$this->negated
 		);
 	}
 
@@ -113,11 +119,12 @@ class Scope
 			$this->getVariableTaints(),
 			$this->getTemporaryTaints(),
 			$this->blocks,
-			$this->statementStack
+			$this->statementStack,
+			$this->negated
 		);
 	}
 
-	public function enterBlock(Block $block, Stmt $stmt = null): self
+	public function enterBlock(Block $block, Stmt $stmt = null, bool $negated = false): self
 	{
 		$blocks = $this->blocks;
 		array_push($blocks, $block);
@@ -135,7 +142,8 @@ class Scope
 			$this->variableTaints,
 			$this->getTemporaryTaints(),
 			$blocks,
-			$statements
+			$statements,
+			$negated
 		);
 	}
 
@@ -173,6 +181,16 @@ class Scope
 	public function getParentStatement(): ?Stmt
 	{
 		return $this->statementStack[count($this->statementStack) - 2];
+	}
+
+	public function getStatementStack(): array
+	{
+		return $this->statementStack;
+	}
+
+	public function isNegated(): bool
+	{
+		return $this->negated;
 	}
 
 //	public function enterStatement(Stmt $statement): self
@@ -231,7 +249,8 @@ class Scope
 			$variableTaints,
 			$this->getTemporaryTaints(),
 			$this->blocks,
-			$this->statementStack
+			$this->statementStack,
+			$this->negated
 		);
 	}
 
@@ -251,7 +270,8 @@ class Scope
 			$variableTaints,
 			$this->getTemporaryTaints(),
 			$this->blocks,
-			$this->statementStack
+			$this->statementStack,
+			$this->negated
 		);
 	}
 
@@ -273,7 +293,8 @@ class Scope
 			$this->getVariableTaints(),
 			$temporaryTaints,
 			$this->blocks,
-			$this->statementStack
+			$this->statementStack,
+			$this->negated
 		);
 	}
 
@@ -336,6 +357,7 @@ class Scope
 			$this->getTemporaryTaints(),
 			$this->blocks,
 			$this->statementStack,
+			$this->negated,
 			$func,
 			$call
 		);
