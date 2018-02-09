@@ -40,7 +40,18 @@ $errors = $analyser->analyse([
 	$file,
 ]);
 
-echo "<pre>---\n". htmlspecialchars(file_get_contents($file.'/index.php')) . "\n---</pre>";
+$content = file_get_contents($file.'/index.php');
+
+if ($content !== false) {
+	$lines = explode("\n", $content);
+	$pad = strlen((string) count($lines));
+	$i = 1;
+	$lines = array_map(function ($value) use ($pad, &$i) {
+		return str_pad((string) $i++, $pad, ' ', STR_PAD_LEFT) .' '. $value;
+	}, $lines);
+
+	echo "<pre>---\n". htmlspecialchars(implode("\n", $lines)) . "\n---</pre>";
+}
 
 foreach ($errors as $error) {
 	echo sprintf('[%s:%d]: %s<br>', $error->getFile(), $error->getLine(), $error->getMessage()). PHP_EOL;
