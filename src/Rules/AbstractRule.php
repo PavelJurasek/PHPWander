@@ -39,8 +39,12 @@ abstract class AbstractRule
 		} elseif ($op instanceof Op\Expr\FuncCall) {
 			$str = sprintf('function call to %s', $this->unwrapOperand($op->name, $scope));
 
-			foreach ($this->funcCallStorage->get($op)->getFuncCallResult()->getTaintingCallPaths() as $taintingCallPath) {
-				$str .= ' - (' . $this->describeFuncCallPath($taintingCallPath, $scope) . ')';
+			$mapping = $this->funcCallStorage->get($op);
+
+			if ($mapping) {
+				foreach ($mapping->getFuncCallResult()->getTaintingCallPaths() as $taintingCallPath) {
+					$str .= ' - (' . $this->describeFuncCallPath($taintingCallPath, $scope) . ')';
+				}
 			}
 		} elseif ($op instanceof Op\Expr\PropertyFetch) {
 			$str = sprintf('property $%s', Helpers::unwrapOp($op));
