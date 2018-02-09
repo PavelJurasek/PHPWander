@@ -47,6 +47,9 @@ class NodeScopeResolver
 	/** @var bool[] filePath(string) => bool(true) */
 	private $analysedFiles = [];
 
+	/** @var bool[] filePath(string) => int */
+	private $includedFilesResults = [];
+
 	/** @var Func[] */
 	private $functions;
 
@@ -320,19 +323,28 @@ class NodeScopeResolver
 	{
 		if ($op->expr instanceof Operand\Temporary) {
 			if ($this->isExprResolvable($op->expr)) {
-				$file = $this->resolveIncludedFile($op->expr);
+				$file = $this->resolveIncludedFile($op->expr, $scope);
 
-				if (is_file($file) && !array_key_exists($file, $this->analysedFiles)) {
-					$this->addAnalysedFile($file);
-					$scriptScope = $this->processScript(
-						$this->parser->parseFile($file),
-						$scope->enterFile($file),
-						$nodeCallback
-					);
+				if (is_file($file)) {
+					if (!array_key_exists($file, $this->analysedFiles)) {
+						$this->addAnalysedFile($file);
+						$scriptScope = $this->processScript(
+							$this->parser->parseFile($file),
+							$scope->enterFile($file),
+							$nodeCallback
+						);
 
-					$scope = $scriptScope->leaveFile();
+						$scope = $scriptScope->leaveFile();
 
-					$taint = $scriptScope->getResultTaint();
+						$taint = $scriptScope->getResultTaint();
+
+						$this->includedFilesResults[$file] = $taint;
+					} elseif (array_key_exists($file, $this->includedFilesResults)) {
+						$taint = $this->includedFilesResults[$file];
+					} else {
+						$taint = Taint::UNKNOWN;
+					}
+
 					$threats = ['result'];
 
 					$op->setAttribute(Taint::ATTR, $taint);
