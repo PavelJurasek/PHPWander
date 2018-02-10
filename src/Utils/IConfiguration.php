@@ -8,8 +8,8 @@ namespace PHPWander\Utils;
 interface IConfiguration
 {
 
-	public function getAll(): iterable;
+	public function getAll(): array;
 
-	public function getSection(string $section): iterable;
+	public function getSection(string $section): array;
 
 }

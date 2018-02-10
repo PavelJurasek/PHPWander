@@ -30,6 +30,6 @@
     }
   },
   "scripts": {
-    "phpstan": "vendor/bin/phpstan analyse -c phpstan.neon -l4 src/ --ansi"
+    "phpstan": "vendor/bin/phpstan analyse -c phpstan.neon -l6 src/ --ansi"
   }
 }

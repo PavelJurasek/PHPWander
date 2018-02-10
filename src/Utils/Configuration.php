@@ -11,10 +11,10 @@ class Configuration implements IConfiguration
 	/** @var ConfigurationLoader */
 	private $configurationLoader;
 
-	/** @var array */
+	/** @var array|null */
 	private $tree;
 
-	/** @var array */
+	/** @var array|null */
 	private $flat;
 
 	public function __construct(ConfigurationLoader $configurationLoader)
@@ -22,7 +22,7 @@ class Configuration implements IConfiguration
 		$this->configurationLoader = $configurationLoader;
 	}
 
-	public function getTree(): iterable
+	public function getTree(): array
 	{
 		if ($this->tree === null) {
 			$this->tree = $this->configurationLoader->load();
@@ -31,7 +31,7 @@ class Configuration implements IConfiguration
 		return $this->tree;
 	}
 
-	public function getAll(): iterable
+	public function getAll(): array
 	{
 		if ($this->flat === null) {
 			$this->flat = array_merge(...array_values($this->getTree()));
@@ -40,7 +40,7 @@ class Configuration implements IConfiguration
 		return $this->flat;
 	}
 
-	public function getSection(string $section): iterable
+	public function getSection(string $section): array
 	{
 		return $this->configurationLoader->load()[$section];
 	}

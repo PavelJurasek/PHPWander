@@ -14,7 +14,7 @@ class SanitizerFunctions implements IConfiguration
 	/** @var Configuration */
 	private $inner;
 
-	/** @var string[] */
+	/** @var array|null */
 	private $flat;
 
 	public function __construct(Configuration $inner)
@@ -22,7 +22,7 @@ class SanitizerFunctions implements IConfiguration
 		$this->inner = $inner;
 	}
 
-	public function getAll(): iterable
+	public function getAll(): array
 	{
 		if ($this->flat === null) {
 			$this->flat = array_merge(
@@ -38,7 +38,7 @@ class SanitizerFunctions implements IConfiguration
 		return $this->flat;
 	}
 
-	public function getSection(string $section): iterable
+	public function getSection(string $section): array
 	{
 		return $this->inner->getSection($section);
 	}

@@ -232,6 +232,9 @@ class NodeScopeResolver
 
 		if ($op->expr instanceof Operand\Temporary) {
 			$scope = $scope->assignTemporary($op->expr, $taint);
+		}
+
+		if ($op->result instanceof Operand\Temporary) {
 			$scope = $scope->assignTemporary($op->result, $taint);
 		}
 //		taint($scope->getVariableTaints());
@@ -254,7 +257,9 @@ class NodeScopeResolver
 					$op->setAttribute(Taint::ATTR, $taint);
 				}
 
-				$scope = $scope->assignTemporary($op->result, $taint);
+				if ($op->result instanceof Operand\Temporary) {
+					$scope = $scope->assignTemporary($op->result, $taint);
+				}
 //				$op->result->setAttribute(Taint::ATTR, $taint);
 			} else {
 				dump(__METHOD__);
@@ -274,10 +279,12 @@ class NodeScopeResolver
 			/** @var Operand $arg */
 			$arg = $call->args[$i];
 
-			if ($arg instanceof Operand\Temporary && $arg->original instanceof Operand\Variable) {
-				$bindArgs[$this->printer->print($param, $scope)] = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
-			} else { // func call?
-				$bindArgs[$this->printer->print($param, $scope)] = $this->lookForFuncCalls($arg);
+			if ($arg instanceof Operand\Temporary) {
+				if ($arg->original instanceof Operand\Variable) {
+					$bindArgs[$this->printer->print($param, $scope)] = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
+				} else {
+					$bindArgs[$this->printer->print($param, $scope)] = $this->lookForFuncCalls($arg);
+				}
 			}
 		}
 

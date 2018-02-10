@@ -16,7 +16,7 @@ class SinkFunctions implements IConfiguration
 	/** @var Configuration */
 	private $inner;
 
-	/** @var iterable */
+	/** @var array|null */
 	private $flat;
 
 	public function __construct(Configuration $inner)
@@ -24,7 +24,7 @@ class SinkFunctions implements IConfiguration
 		$this->inner = $inner;
 	}
 
-	public function getAll(): iterable
+	public function getAll(): array
 	{
 		if ($this->flat === null) {
 			$this->flat = $this->inner->getAll();
@@ -33,7 +33,7 @@ class SinkFunctions implements IConfiguration
 		return $this->flat;
 	}
 
-	public function getSection(string $section): iterable
+	public function getSection(string $section): array
 	{
 		return $this->inner->getSection($section);
 	}
