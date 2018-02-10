@@ -104,7 +104,7 @@ class NodeScopeResolver
 	public function processScript(
 		Script $script,
 		Scope $scope,
-		\Closure $opCallback
+		callable $opCallback
 	): Scope {
 		foreach ($script->functions as $function) {
 			if (array_key_exists($function->name, $this->functions)) {
@@ -119,7 +119,7 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processBlock(Block $block, Scope $scope, \Closure $opCallback, Op\Stmt $stmt = null, bool $negated = false): Scope
+	private function processBlock(Block $block, Scope $scope, callable $opCallback, Op\Stmt $stmt = null, bool $negated = false): Scope
 	{
 		$blockScope = $scope->enterBlock($block, $stmt, $negated);
 		$this->blockScopeStorage->put($block, $blockScope);
@@ -136,7 +136,7 @@ class NodeScopeResolver
 	/**
 	 * @param Op[] $nodes
 	 */
-	public function processNodes(array $nodes, Scope $scope, \Closure $opCallback): Scope {
+	public function processNodes(array $nodes, Scope $scope, callable $opCallback): Scope {
 		foreach ($nodes as $i => $op) {
 			$scope = $this->processNode($op, $scope, $opCallback);
 		}
@@ -144,7 +144,7 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processNode(Op $op, Scope $scope, \Closure $nodeCallback): Scope
+	private function processNode(Op $op, Scope $scope, callable $nodeCallback): Scope
 	{
 		if ($op instanceof Op\Expr\New_) {
 			$name = $this->printer->printOperand($op->class, $scope);
@@ -266,7 +266,7 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processFunctionCall(Func $function, Op\Expr\FuncCall $call, Scope $scope, \Closure $nodeCallback): Scope
+	private function processFunctionCall(Func $function, Op\Expr\FuncCall $call, Scope $scope, callable $nodeCallback): Scope
 	{
 		$bindArgs = [];
 
@@ -323,7 +323,7 @@ class NodeScopeResolver
 		return $taint;
 	}
 
-	private function processInclude(Scope $scope, Op\Expr\Include_ $op, \Closure $nodeCallback): Scope
+	private function processInclude(Scope $scope, Op\Expr\Include_ $op, callable $nodeCallback): Scope
 	{
 		if ($op->expr instanceof Operand\Temporary) {
 			if ($this->isExprResolvable($op->expr)) {
