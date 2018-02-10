@@ -34,21 +34,13 @@ class Echo_ extends AbstractRule implements Rule
 			if ($node->expr->original instanceof Variable) {
 				$variable = $this->printOperand($node->expr, $scope);
 
-				if ($scope->getVariableTaint($variable) === Taint::TAINTED) {
+				if ($this->isTainted($scope->getVariableTaint($variable))) {
 //				if (
 //					in_array('string', (array) $variable->ops[0]->getAttribute(Taint::ATTR_TAINT), true) ||
 //					in_array('userinput', (array) $variable->ops[0]->getAttribute(Taint::ATTR_SOURCE), true) ||
 //					!in_array('xss', (array) $variable->ops[0]->getAttribute(Taint::ATTR_SANITIZE), true)
 //				) {
 					return [$this->describeTaint($node->expr->ops[0], $scope)];
-				}
-			}
-
-			$name = $this->printOperand($node->expr, $scope);
-
-			if ($scope->hasVariableTaint($name)) {
-				if ($this->isTainted($scope->getVariableTaint($name))) {
-					return [$this->describeTaint($node->expr, $scope)];
 				}
 			}
 
