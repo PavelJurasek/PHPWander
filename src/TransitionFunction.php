@@ -91,9 +91,7 @@ class TransitionFunction
 
 		if ($op instanceof Op\Terminal\Return_ && $op->expr !== null) {
 			return $this->transfer($scope, $op->expr);
-		}
-
-		if ($op instanceof Op\Expr\FuncCall) {
+		} elseif ($op instanceof Op\Expr\FuncCall) {
 			if ($op->name instanceof Literal) {
 				$funcName = $this->printer->printOperand($op->name, $scope);
 
@@ -156,9 +154,7 @@ class TransitionFunction
 				dump('?');
 				dump($op);
 			}
-		}
-
-		if ($op instanceof Op\Expr\BinaryOp\Plus) {
+		} elseif ($op instanceof Op\Expr\BinaryOp\Plus) {
 			return Taint::UNTAINTED;
 		}
 
