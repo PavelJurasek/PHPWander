@@ -85,7 +85,7 @@ class StandardPrinter implements Printer
 		}
 
 		foreach ($operand->ops as $op) {
-			return $this->print($op, $scope);
+			return $this->printOp($op, $scope);
 		}
 
 		return '?';
