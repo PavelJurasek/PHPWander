@@ -16,6 +16,8 @@ interface Printer
 
 	public function printOperand(Operand $operand, Scope $scope, bool $quote = false): string;
 
+	public function printArrayFetch(Operand $var, $dim, Scope $scope): string;
+
 	public function printBinaryOp(BinaryOp $op): string;
 
 }

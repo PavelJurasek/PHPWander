@@ -95,6 +95,8 @@ class StandardDescriber implements Describer
 			$str = sprintf('return %s', $this->describeOperand($node->expr, $scope));
 		} elseif ($node instanceof Op\Expr\Param) {
 			return '';
+		} elseif ($node instanceof Op\Iterator\Value) {
+			return sprintf('value of %s', $this->printer->printOperand($node->var, $scope));
 		}
 
 		if (!isset($str)) {
@@ -104,7 +106,11 @@ class StandardDescriber implements Describer
 
 		if (isset($subOp)) {
 			if ($subOp instanceof Operand) {
-				$str .= ' - ' . $this->describeOperand($subOp, $scope);
+				if ($node instanceof Op\Expr\Assign && $subOp->ops) {
+					$str .= $this->describeOpsForAssignment($node, $subOp->ops, $scope);
+				} else {
+					$str .= ' - ' . $this->describeOperand($subOp, $scope);
+				}
 			} elseif (in_array('ops', $subOp->getVariableNames(), true)) {
 				foreach ($subOp->ops as $_op) {
 					$str .= ' - ' . $this->describe($_op, $scope);
@@ -162,6 +168,20 @@ class StandardDescriber implements Describer
 	protected function isTainted(int $taint): bool
 	{
 		return $taint === Taint::TAINTED || $taint === Taint::BOTH;
+	}
+
+	/**
+	 * @param Op[] $ops
+	 */
+	private function describeOpsForAssignment(Op\Expr\Assign $node, array $ops, Scope $scope): string
+	{
+		$str = ' ';
+
+		foreach ($ops as $op) {
+			$str .= sprintf('%s = %s', $this->printer->print($node->var, $scope), $this->describe($op, $scope));
+		}
+
+		return $str;
 	}
 
 }

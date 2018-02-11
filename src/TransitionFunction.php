@@ -56,6 +56,10 @@ class TransitionFunction
 		} elseif ($node instanceof Operand\Temporary) {
 			return $this->transferTemporary($scope, $node);
 		} elseif ($node instanceof Operand\Variable) {
+			if ($this->isSource($node, $scope, 'userinput')) {
+				return Taint::TAINTED;
+			}
+
 			return $scope->getVariableTaint($this->printer->printOperand($node, $scope));
 		}
 

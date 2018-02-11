@@ -121,6 +121,10 @@ class NodeScopeResolver
 
 	private function processBlock(Block $block, Scope $scope, callable $opCallback, Op\Stmt $stmt = null, bool $negated = false): Scope
 	{
+		if ($this->blockScopeStorage->hasBlock($block)) {
+			return $scope;
+		}
+
 		$blockScope = $scope->enterBlock($block, $stmt, $negated);
 		$this->blockScopeStorage->put($block, $blockScope);
 
@@ -204,6 +208,14 @@ class NodeScopeResolver
 			dump(__METHOD__);
 			dump($op);
 			die;
+		} elseif ($op instanceof Op\Iterator\Reset) {
+			$name = $this->printer->printOperand($op->var, $scope);
+			$scope = $scope->assignVariable($name, $this->transitionFunction->transfer($scope, $op->var));
+		} elseif ($op instanceof Op\Iterator\Value) {
+			$taint = $this->transitionFunction->transfer($scope, $op->var);
+
+			$op->setAttribute(Taint::ATTR, $taint);
+			$scope = $scope->assignTemporary($op->result, $taint);
 		}
 
 		$nodeCallback($op, $scope);
@@ -222,6 +234,15 @@ class NodeScopeResolver
 				} elseif ($_op instanceof Op\Expr\New_) {
 					$type = $_op->getAttribute('type');
 					$op->setAttribute('type', $type);
+				} elseif ($_op instanceof Op\Expr\Array_) {
+					$taint = Taint::UNKNOWN;
+					foreach ($_op->keys as $index => $key) {
+						$arrayItem = $this->printer->printArrayFetch($op->var, $key ?: $index, $scope);
+						$scope = $scope->assignVariable($arrayItem, $this->transitionFunction->transfer($scope, $_op->values[$index]));
+						$taint = $this->transitionFunction->leastUpperBound($taint, $scope->getVariableTaint($arrayItem));
+					}
+
+					$_op->setAttribute(Taint::ATTR, $taint);
 				}
 			}
 		}

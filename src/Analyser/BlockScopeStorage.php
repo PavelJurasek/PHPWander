@@ -13,6 +13,13 @@ class BlockScopeStorage
 	/** @var array */
 	private $storage = [];
 
+	public function hasBlock(Block $block): bool
+	{
+		$hash = $this->hash($block);
+
+		return array_key_exists($hash, $this->storage);
+	}
+
 	public function put(Block $block, Scope $scope): void
 	{
 		$this->storage[$this->hash($block)] = $scope;

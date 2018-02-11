@@ -62,6 +62,8 @@ class StandardPrinter implements Printer
 			return sprintf('$%s->%s(%s)', $this->printOperand($node->var, $scope), $this->printOperand($node->name, $scope), $this->printList($node->args, $scope));
  		} elseif ($node instanceof Op\Expr\ConstFetch) {
 			return $this->printOperand($node->name, $scope);
+		} elseif ($node instanceof Op\Iterator\Valid) {
+			return '*in iteration*';
 		}
 
 		dump($node);
@@ -87,6 +89,17 @@ class StandardPrinter implements Printer
 		}
 
 		return '?';
+	}
+
+	public function printArrayFetch(Operand $var, $dim, Scope $scope): string
+	{
+		if ($dim instanceof Operand) {
+			$dim = $this->printOperand($dim, $scope);
+		} elseif (!is_integer($dim)) {
+			$dim = sprintf('\'%s\'', $dim);
+		}
+
+		return sprintf('%s[%s]', $this->printOperand($var, $scope), $dim);
 	}
 
 	public function printBinaryOp(Op\Expr\BinaryOp $op): string
