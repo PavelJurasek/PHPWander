@@ -77,7 +77,7 @@ class StandardPrinter implements Printer
 		if ($operand instanceof Operand\Variable) {
 			return sprintf('$%s', $this->printOperand($operand->name, $scope));
 		} elseif ($operand instanceof Operand\Literal) {
-			return $quote ? sprintf('\'%s\'', $operand->value) : $operand->value;
+			return $quote ? sprintf('\'%s\'', $operand->value) : (string) $operand->value;
 		} elseif ($operand instanceof Operand\Temporary) {
 			if ($operand->original instanceof Operand\Variable) {
 				return $this->printOperand($operand->original, $scope);
