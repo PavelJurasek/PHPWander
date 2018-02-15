@@ -8,6 +8,7 @@ use PHPCfg\Op\Expr;
 use PHPCfg\Op\Expr\FuncCall;
 use PHPCfg\Op\Expr\NsFuncCall;
 use PHPCfg\Op\Stmt;
+use PHPCfg\Operand;
 use PHPCfg\Operand\Temporary;
 use PHPWander\Taint;
 use PHPWander\TransitionFunction;
@@ -280,8 +281,12 @@ class Scope
 		return isset($this->temporaries[spl_object_hash($temporary)]);
 	}
 
-	public function assignTemporary(Temporary $temporary, int $taint = Taint::UNKNOWN): self
+	public function assignTemporary(Operand $temporary, int $taint = Taint::UNKNOWN): self
 	{
+		if (!$temporary instanceof Temporary) {
+			return $this;
+		}
+
 		$temporaryTaints = $this->getTemporaryTaints();
 		$temporaryTaints[$this->hash($temporary)] = $taint;
 

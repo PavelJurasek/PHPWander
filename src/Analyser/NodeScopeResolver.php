@@ -251,13 +251,8 @@ class NodeScopeResolver
 		$op->setAttribute(Taint::ATTR, $taint);
 		$scope = $scope->assignVariable($name, $taint);
 
-		if ($op->expr instanceof Operand\Temporary) {
-			$scope = $scope->assignTemporary($op->expr, $taint);
-		}
-
-		if ($op->result instanceof Operand\Temporary) {
-			$scope = $scope->assignTemporary($op->result, $taint);
-		}
+		$scope = $scope->assignTemporary($op->expr, $taint);
+		$scope = $scope->assignTemporary($op->result, $taint);
 //		taint($scope->getVariableTaints());
 
 		return $scope;
@@ -278,9 +273,7 @@ class NodeScopeResolver
 					$op->setAttribute(Taint::ATTR, $taint);
 				}
 
-				if ($op->result instanceof Operand\Temporary) {
-					$scope = $scope->assignTemporary($op->result, $taint);
-				}
+				$scope = $scope->assignTemporary($op->result, $taint);
 //				$op->result->setAttribute(Taint::ATTR, $taint);
 			} else {
 				dump(__METHOD__);
