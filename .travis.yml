@@ -19,4 +19,5 @@ before_script:
 
 script:
   - vendor/bin/phpstan analyse -c phpstan.neon -l1 src/ --ansi
+  - mkdir tests/tmp && chmod 777 tests/tmp
   - vendor/bin/tester tests/PHPWander
