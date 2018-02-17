@@ -4,6 +4,7 @@ namespace PHPWander\Printer;
 
 use PHPCfg\Op;
 use PHPCfg\Operand;
+use PHPWander\Analyser\BoundVariable;
 use PHPWander\Analyser\Scope;
 
 /**
@@ -21,10 +22,10 @@ class StandardPrinter implements Printer
 		return $this->printOp($node, $scope);
 	}
 
-	private function printOp(Op $node, Scope $scope): string
+	public function printOp(Op $node, Scope $scope): string
 	{
 		if ($node instanceof Op\Expr\Assign) {
-			return sprintf('%s = %s', $this->print($node->var, $scope), $this->print($node->expr, $scope));
+			return sprintf('%s = %s', $this->print($node->var, $scope), $this->printOperand($node->expr, $scope, true));
 		} elseif ($node instanceof Op\Expr\ArrayDimFetch) {
 			return sprintf('%s[%s]', $this->printOperand($node->var, $scope), $this->printOperand($node->dim, $scope, true));
 		} elseif ($node instanceof Op\Expr\FuncCall) {
@@ -33,17 +34,15 @@ class StandardPrinter implements Printer
 			return sprintf('%s->%s', $this->printOperand($node->var, $scope), $this->printOperand($node->name, $scope));
 		} elseif ($node instanceof Op\Stmt\JumpIf) {
 			return sprintf('if (%s)', $this->print($node->cond, $scope));
-		} elseif ($node instanceof Op\Expr\BinaryOp\Concat) {
-			return sprintf('%s . %s', $this->printOperand($node->left, $scope), $this->printOperand($node->right, $scope));
 		} elseif ($node instanceof Op\Expr\BinaryOp) {
-			return sprintf('%s %s %s', $this->printOperand($node->left, $scope), $this->printBinaryOp($node), $this->printOperand($node->right, $scope));
+			return sprintf('%s %s %s', $this->printOperand($node->left, $scope, true), $this->printBinaryOp($node), $this->printOperand($node->right, $scope, true));
 		} elseif ($node instanceof Op\Expr\Cast) {
 			$class = get_class($node);
-			$cast = strtolower(rtrim(substr($class, strrpos($class, '\\')), '_'));
+			$cast = strtolower(rtrim(substr($class, strrpos($class, '\\') + 1), '_'));
 
 			return sprintf('(%s)', $cast);
 		} elseif ($node instanceof Op\Terminal\Return_) {
-			return sprintf('return %s', $this->printOperand($node->expr, $scope));
+			return $node->expr ? sprintf('return %s', $this->printOperand($node->expr, $scope)) : 'return';
 		} elseif ($node instanceof Op\Stmt\Jump) {
 //			$str = sprintf('jump');
 //			$blockScope = $this->blockScopeStorage->get($node->target);
@@ -59,15 +58,15 @@ class StandardPrinter implements Printer
 		} elseif ($node instanceof Op\Expr\ConcatList) {
 			return $this->printList($node->list, $scope, ' . ');
 		} elseif ($node instanceof Op\Expr\MethodCall) {
-			return sprintf('$%s->%s(%s)', $this->printOperand($node->var, $scope), $this->printOperand($node->name, $scope), $this->printList($node->args, $scope));
+			return sprintf('%s->%s(%s)', $this->printOperand($node->var, $scope), $this->printOperand($node->name, $scope), $this->printList($node->args, $scope));
  		} elseif ($node instanceof Op\Expr\ConstFetch) {
 			return $this->printOperand($node->name, $scope);
 		} elseif ($node instanceof Op\Iterator\Valid) {
 			return '*in iteration*';
 		}
 
+		dump(__METHOD__);
 		dump($node);
-		die;
 
 		return '?';
 	}
@@ -77,7 +76,7 @@ class StandardPrinter implements Printer
 		if ($operand instanceof Operand\Variable) {
 			return sprintf('$%s', $this->printOperand($operand->name, $scope));
 		} elseif ($operand instanceof Operand\Literal) {
-			return $quote ? sprintf('\'%s\'', $operand->value) : (string) $operand->value;
+			return $quote && is_string($operand->value) ? sprintf('\'%s\'', $operand->value) : (string) $operand->value;
 		} elseif ($operand instanceof Operand\Temporary) {
 			if ($operand->original instanceof Operand\Variable) {
 				return $this->printOperand($operand->original, $scope);
@@ -95,6 +94,8 @@ class StandardPrinter implements Printer
 	{
 		if ($dim instanceof Operand) {
 			$dim = $this->printOperand($dim, $scope);
+		} elseif ($dim instanceof Op) {
+			$dim = $this->printOp($dim, $scope);
 		} elseif (!is_integer($dim)) {
 			$dim = sprintf('\'%s\'', $dim);
 		}
@@ -159,6 +160,9 @@ class StandardPrinter implements Printer
 	private function printList(array $args, Scope $scope, string $glue = ', '): string
 	{
 		return implode($glue, array_map(function ($arg) use ($scope) {
+			if ($arg instanceof Operand\Literal) {
+				return $this->printOperand($arg, $scope, true);
+			}
 			return $this->print($arg, $scope);
 		}, $args));
 	}

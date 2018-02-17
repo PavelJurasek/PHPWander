@@ -2,6 +2,7 @@
 
 namespace PHPWander\Printer;
 
+use PHPCfg\Op;
 use PHPCfg\Op\Expr\BinaryOp;
 use PHPCfg\Operand;
 use PHPWander\Analyser\Scope;
@@ -13,6 +14,8 @@ interface Printer
 {
 
 	public function print($node, Scope $scope): string;
+
+	public function printOp(Op $node, Scope $scope): string;
 
 	public function printOperand(Operand $operand, Scope $scope, bool $quote = false): string;
 

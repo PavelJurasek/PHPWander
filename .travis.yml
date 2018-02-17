@@ -19,3 +19,4 @@ before_script:
 
 script:
   - vendor/bin/phpstan analyse -c phpstan.neon -l1 src/ --ansi
+  - vendor/bin/tester tests/PHPWander
