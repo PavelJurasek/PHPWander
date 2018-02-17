@@ -9,7 +9,7 @@ if (!class_exists('Tester\Assert')) {
 
 \Tester\Environment::setup();
 
-$tmpDir = __DIR__ . '/../tmp';
+$tmpDir = __DIR__ . '/tmp';
 $cwd = getcwd();
 
 $containerFactory = new \PHPWander\DI\ContainerFactory($cwd);
