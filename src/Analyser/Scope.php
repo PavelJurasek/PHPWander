@@ -166,7 +166,10 @@ class Scope
 
 	public function leaveBlock(): self
 	{
-		return $this->parentScope;
+		$parentScope = $this->parentScope;
+		$parentScope->setResultTaint($this->getResultTaint());
+
+		return $parentScope;
 	}
 
 	public function getStatementForBlock(Block $block): ?Stmt
