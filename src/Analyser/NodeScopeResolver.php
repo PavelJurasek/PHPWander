@@ -142,7 +142,8 @@ class NodeScopeResolver
 	/**
 	 * @param Op[] $nodes
 	 */
-	public function processNodes(array $nodes, Scope $scope, callable $opCallback): Scope {
+	public function processNodes(array $nodes, Scope $scope, callable $opCallback): Scope
+	{
 		foreach ($nodes as $i => $op) {
 			$scope = $this->processNode($op, $scope, $opCallback);
 		}
