@@ -30,7 +30,7 @@ class VariableFunctionCalled extends AbstractRule implements Rule
 		if ($node->name instanceof Operand\Variable) {
 			$name = $this->printOperand($node->name, $scope);
 
-			if ($this->isTainted($scope->getVariableTaint($name))) {
+			if ($scope->getVariableTaint($name)->isTainted()) {
 				return [
 					sprintf('Variable function is called on variable %s.', $this->printOperand($node->name, $scope)),
 				];
@@ -43,7 +43,7 @@ class VariableFunctionCalled extends AbstractRule implements Rule
 	private function isArgumentTainted(Operand $arg, Scope $scope): bool
 	{
 		if ($arg instanceof Operand\Variable) {
-			return $this->isTainted($scope->getVariableTaint($arg->name->value));
+			return $scope->getVariableTaint($arg->name->value)->isTainted();
 		} if ($arg instanceof Operand\Temporary) {
 			if ($arg->original instanceof Operand\Variable) {
 				return $this->isArgumentTainted($arg->original, $scope);

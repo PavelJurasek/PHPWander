@@ -10,6 +10,7 @@ use PHPCfg\Op\Expr\NsFuncCall;
 use PHPCfg\Op\Stmt;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Temporary;
+use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 use PHPWander\TransitionFunction;
 
@@ -22,8 +23,8 @@ class Scope
 	/** @var TransitionFunction */
 	private $transitionFunction;
 
-	/** @var int */
-	private $resultTaint = Taint::UNKNOWN;
+	/** @var Taint */
+	private $resultTaint;
 
 	/** @var string */
 	private $file;
@@ -31,7 +32,7 @@ class Scope
 	/** @var string */
 	private $analysedContextFile;
 
-	/** @var int[] */
+	/** @var Taint[] */
 	private $variableTaints;
 
 	/** @var int[] */
@@ -71,6 +72,8 @@ class Scope
 		if ($funcCall !== null) {
 			$this->assertFuncCallArgument($funcCall);
 		}
+
+		$this->resultTaint = new ScalarTaint(Taint::UNKNOWN);
 
 		$this->transitionFunction = $transitionFunction;
 		$this->file = $file;
@@ -215,7 +218,7 @@ class Scope
 //	}
 
 	/**
-	 * @return int[]
+	 * @return Taint[]
 	 */
 	public function getVariableTaints(): array
 	{
@@ -227,20 +230,20 @@ class Scope
 		return isset($this->variableTaints[$variableName]);
 	}
 
-	public function getVariableTaint(string $variableName): int
+	public function getVariableTaint(string $variableName): Taint
 	{
 		if (!$this->hasVariableTaint($variableName)) {
 			if ($this->parentScope) {
 				return $this->parentScope->getVariableTaint($variableName);
 			}
 
-			return Taint::UNKNOWN;
+			return new ScalarTaint(Taint::UNKNOWN);
 		}
 
 		return $this->variableTaints[$variableName];
 	}
 
-	public function assignVariable(string $variableName, int $taint): self
+	public function assignVariable(string $variableName, Taint $taint): self
 	{
 		$variableTaints = $this->getVariableTaints();
 		$variableTaints[$variableName] = $taint;
@@ -284,10 +287,14 @@ class Scope
 		return isset($this->temporaries[spl_object_hash($temporary)]);
 	}
 
-	public function assignTemporary(Operand $temporary, int $taint = Taint::UNKNOWN): self
+	public function assignTemporary(Operand $temporary, Taint $taint = null): self
 	{
 		if (!$temporary instanceof Temporary) {
 			return $this;
+		}
+
+		if ($taint === null) {
+			$taint = new ScalarTaint(Taint::UNKNOWN);
 		}
 
 		$temporaryTaints = $this->getTemporaryTaints();
@@ -334,12 +341,12 @@ class Scope
 		return $descriptions;
 	}
 
-	public function getResultTaint(): int
+	public function getResultTaint(): Taint
 	{
 		return $this->resultTaint;
 	}
 
-	public function setResultTaint(int $resultTaint): void
+	public function setResultTaint(Taint $resultTaint): void
 	{
 		$this->resultTaint = $resultTaint;
 	}

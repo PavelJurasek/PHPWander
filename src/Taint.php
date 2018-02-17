@@ -5,7 +5,7 @@ namespace PHPWander;
 /**
  * @author Pavel Jurásek
  */
-interface Taint
+abstract class Taint
 {
 
 	public const ATTR = 'taint-result';
@@ -19,5 +19,9 @@ interface Taint
 	public const UNTAINTED = 1;
 	public const TAINTED = 2;
 	public const BOTH = 3;
+
+	abstract public function leastUpperBound(Taint $other): ScalarTaint;
+
+	abstract public function isTainted(): bool;
 
 }

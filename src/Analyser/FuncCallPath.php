@@ -3,6 +3,7 @@
 namespace PHPWander\Analyser;
 
 use PHPCfg\Op;
+use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 
 /**
@@ -27,7 +28,7 @@ class FuncCallPath
 	/** @var int */
 	private $evaluation;
 
-	/** @var int */
+	/** @var Taint */
 	private $taint;
 
 	public function __construct(?self $parent, Op $statement, int $evaluation)
@@ -35,7 +36,7 @@ class FuncCallPath
 		$this->parent = $parent;
 		$this->statement = $statement;
 		$this->evaluation = $evaluation;
-		$this->taint = Taint::UNKNOWN;
+		$this->taint = new ScalarTaint(Taint::UNKNOWN);
 
 		if ($parent) {
 			$parent->addChild($this);
@@ -69,12 +70,12 @@ class FuncCallPath
 		return $this->evaluation;
 	}
 
-	public function getTaint(): int
+	public function getTaint(): Taint
 	{
 		return $this->taint;
 	}
 
-	public function setTaint(int $taint): void
+	public function setTaint(Taint $taint): void
 	{
 		$this->taint = $taint;
 		if ($this->parent) {

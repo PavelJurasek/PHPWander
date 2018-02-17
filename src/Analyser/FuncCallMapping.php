@@ -3,6 +3,7 @@
 namespace PHPWander\Analyser;
 
 use PHPCfg\Func;
+use PHPWander\Taint;
 
 /**
  * @author Pavel Jurásek
@@ -19,10 +20,10 @@ class FuncCallMapping
 	/** @var FuncCallResult */
 	private $funcCallResult;
 
-	/** @var int */
+	/** @var Taint */
 	private $taint;
 
-	public function __construct(Func $func, array $argTaints, FuncCallResult $funcCallResult, int $taint)
+	public function __construct(Func $func, array $argTaints, FuncCallResult $funcCallResult, Taint $taint)
 	{
 		$this->func = $func;
 		$this->argTaints = $argTaints;
@@ -45,7 +46,7 @@ class FuncCallMapping
 		return $this->funcCallResult;
 	}
 
-	public function getTaint(): int
+	public function getTaint(): Taint
 	{
 		return $this->taint;
 	}

@@ -8,6 +8,7 @@ use PHPWander\Analyser\BlockScopeStorage;
 use PHPWander\Analyser\FuncCallStorage;
 use PHPWander\Analyser\Scope;
 use PHPWander\Describer\Describer;
+use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 
 /**
@@ -37,12 +38,12 @@ abstract class AbstractRule
 		return $this->describer->describe($op, $scope);
 	}
 
-	protected function decideOpsTaint(array $ops): int
+	protected function decideOpsTaint(array $ops): Taint
 	{
-		$taint = Taint::UNKNOWN;
+		$taint = new ScalarTaint(Taint::UNKNOWN);
 		/** @var Op $op */
 		foreach ($ops as $op) {
-			$taint = $this->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
+			$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
 		}
 
 		return $taint;
@@ -56,16 +57,6 @@ abstract class AbstractRule
 	protected function printOperand(Operand $operand, Scope $scope): string
 	{
 		return $this->describer->getPrinter()->print($operand, $scope);
-	}
-
-	protected function leastUpperBound(int $taint, int $transferOp)
-	{
-		return max($taint, $transferOp);
-	}
-
-	protected function isTainted(int $taint): bool
-	{
-		return $taint === Taint::TAINTED || $taint === Taint::BOTH;
 	}
 
 }

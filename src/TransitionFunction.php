@@ -49,15 +49,15 @@ class TransitionFunction
 		$this->taintFunctions = $taintFunctions;
 	}
 
-	public function transfer(Scope $scope, Operand $node): int
+	public function transfer(Scope $scope, Operand $node): Taint
 	{
 		if ($node instanceof Literal) {
-			return Taint::UNTAINTED;
+			return new ScalarTaint(Taint::UNTAINTED);
 		} elseif ($node instanceof Operand\Temporary) {
 			return $this->transferTemporary($scope, $node);
 		} elseif ($node instanceof Operand\Variable) {
 			if ($this->isSource($node, $scope, 'userinput')) {
-				return Taint::TAINTED;
+				return new ScalarTaint(Taint::TAINTED);
 			}
 
 			return $scope->getVariableTaint($this->printer->printOperand($node, $scope));
@@ -66,27 +66,27 @@ class TransitionFunction
 		dump($node);
 		dump(__METHOD__);
 
-		return Taint::UNKNOWN;
+		return new ScalarTaint(Taint::UNKNOWN);
 	}
 
-	private function transferTemporary(Scope $scope, Operand\Temporary $node): int
+	private function transferTemporary(Scope $scope, Operand\Temporary $node): Taint
 	{
 		if ($node->original !== null) {
 			return $this->transfer($scope, $node->original);
 		}
 
-		$taint = Taint::UNKNOWN;
+		$taint = new ScalarTaint(Taint::UNKNOWN);
 		foreach ($node->ops as $op) {
-			$taint = $this->leastUpperBound($taint, $this->transferOp($scope, $op));
+			$taint = $taint->leastUpperBound($this->transferOp($scope, $op));
 		}
 
 		return $taint;
 	}
 
-	public function transferOp(Scope $scope, Op $op, bool $omitSavedAttribute = false): int
+	public function transferOp(Scope $scope, Op $op, bool $omitSavedAttribute = false): Taint
 	{
 		if ($op->hasAttribute(Taint::ATTR) && !$omitSavedAttribute) {
-			return (int) $op->getAttribute(Taint::ATTR);
+			return $op->getAttribute(Taint::ATTR) ?: new ScalarTaint(Taint::UNKNOWN);
 		}
 
 		if ($op instanceof Op\Terminal\Return_ && $op->expr !== null) {
@@ -98,7 +98,7 @@ class TransitionFunction
 				$taintSection = $this->taintFunctions->getTaint($funcName);
 				if ($taintSection) {
 					$taints = [$taintSection];
-					$taint = Taint::TAINTED;
+					$taint = new ScalarTaint(Taint::TAINTED);
 					$type = 'string';
 					$op->setAttribute(Taint::ATTR, $taint);
 					$op->setAttribute(Taint::ATTR_TAINT, $taints);
@@ -108,7 +108,7 @@ class TransitionFunction
 				$source = $this->sourceFunctions->getSource($funcName);
 				if ($source) {
 					$taints = [$source];
-					$taint = Taint::TAINTED;
+					$taint = new ScalarTaint(Taint::TAINTED);
 					$op->setAttribute(Taint::ATTR_SOURCE, $taints);
 					$op->setAttribute(Taint::ATTR, $taint);
 				}
@@ -116,7 +116,7 @@ class TransitionFunction
 				$sanitize = $this->sanitizerFunctions->getSanitize($funcName);
 				if ($sanitize) {
 					$sanitize = [$sanitize];
-					$taint = Taint::UNTAINTED;
+					$taint = new ScalarTaint(Taint::UNTAINTED);
 					$op->setAttribute(Taint::ATTR_SANITIZE, $sanitize);
 					$op->setAttribute(Taint::ATTR, $taint);
 				}
@@ -134,7 +134,7 @@ class TransitionFunction
 				$sink = $this->sinkFunctions->getSink($funcName);
 				if ($sink) {
 					$sink = [$sink];
-					$taint = Taint::TAINTED;
+					$taint = new ScalarTaint(Taint::TAINTED);
 					$op->setAttribute(Taint::ATTR_SINK, $sink);
 					$op->setAttribute(Taint::ATTR, $taint);
 				}
@@ -155,10 +155,10 @@ class TransitionFunction
 				dump($op);
 			}
 		} elseif ($op instanceof Op\Expr\BinaryOp\Plus) {
-			return Taint::UNTAINTED;
+			return new ScalarTaint(Taint::UNTAINTED);
 		}
 
-		return Taint::UNKNOWN;
+		return new ScalarTaint(Taint::UNKNOWN);
 	}
 
 	public function transferCast(Scope $scope, Op\Expr\Cast $op): Scope
@@ -171,20 +171,15 @@ class TransitionFunction
 			$trusted = $scope->hasVariableTaint($variableName) && $scope->getVariableTaint($variableName) === Taint::UNTAINTED;
 		}
 
-		$taint = Taint::UNTAINTED;
+		$taint = new ScalarTaint(Taint::UNTAINTED);
 
 		if ($op instanceof Op\Expr\Cast\String_ && !$trusted) {
-			$taint = Taint::TAINTED;
+			$taint = new ScalarTaint(Taint::TAINTED);
 		}
 
 		$op->setAttribute(Taint::ATTR, $taint);
 
 		return $scope;
-	}
-
-	public function isTainted(int $taint): bool
-	{
-		return $taint === Taint::TAINTED || $taint === Taint::BOTH;
 	}
 
 	private function setAttributes(Op $node, array $attributes): void
@@ -227,26 +222,21 @@ class TransitionFunction
 		return in_array($this->printer->print($operand, $scope), $sources);
 	}
 
-	public function leastUpperBound(int $taint, int $transferOp): int
-	{
-		return max($taint, $transferOp);
-	}
-
 	public function isSuperGlobal(Operand\Variable $variable, Scope $scope): bool
 	{
 		return in_array($this->printer->print($variable, $scope), $this->sourceFunctions->getSection('userinput'));
 	}
 
-	public function transferSuperGlobal(Operand\Variable $variable, string $dim): int
+	public function transferSuperGlobal(Operand\Variable $variable, string $dim): Taint
 	{
 		if (
 			$variable->name->value === '_SERVER'
 			&& !in_array($dim, $this->sourceFunctions->getSection('serverParameters'), true)
 		) {
-			return Taint::UNTAINTED;
+			return new ScalarTaint(Taint::UNTAINTED);
 		}
 
-		return Taint::TAINTED;
+		return new ScalarTaint(Taint::TAINTED);
 	}
 
 }

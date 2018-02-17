@@ -8,6 +8,7 @@ use PHPCfg\Operand\Variable;
 use PHPWander\Analyser\Scope;
 use PHPWander\Rules\AbstractRule;
 use PHPWander\Rules\Rule;
+use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 
 /**
@@ -34,7 +35,7 @@ class Echo_ extends AbstractRule implements Rule
 			if ($node->expr->original instanceof Variable) {
 				$variable = $this->printOperand($node->expr, $scope);
 
-				if ($this->isTainted($scope->getVariableTaint($variable))) {
+				if ($scope->getVariableTaint($variable)->isTainted()) {
 //				if (
 //					in_array('string', (array) $variable->ops[0]->getAttribute(Taint::ATTR_TAINT), true) ||
 //					in_array('userinput', (array) $variable->ops[0]->getAttribute(Taint::ATTR_SOURCE), true) ||
@@ -47,7 +48,7 @@ class Echo_ extends AbstractRule implements Rule
 			if ($node->expr->ops) {
 				/** @var Op $op */
 				foreach ($node->expr->ops as $op) {
-					if ($this->isTainted((int) $op->getAttribute(Taint::ATTR))) {
+					if ($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted()) {
 						return [$this->describeTaint($op, $scope)];
 					}
 				}

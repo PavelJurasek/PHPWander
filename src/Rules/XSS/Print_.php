@@ -8,6 +8,7 @@ use PHPCfg\Operand\Variable;
 use PHPWander\Analyser\Scope;
 use PHPWander\Rules\AbstractRule;
 use PHPWander\Rules\Rule;
+use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 
 /**
@@ -44,7 +45,7 @@ class Print_ extends AbstractRule implements Rule
 			if ($node->expr->ops) {
 				/** @var Op $op */
 				foreach ($node->expr->ops as $op) {
-					if ($this->isTainted((int) $op->getAttribute(Taint::ATTR))) {
+					if ($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted()) {
 						return [
 							sprintf('Print is tainted by %s.', $this->describeOp($op, $scope)),
 						];

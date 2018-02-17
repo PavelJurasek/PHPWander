@@ -9,6 +9,7 @@ use PHPWander\Analyser\BlockScopeStorage;
 use PHPWander\Analyser\FuncCallStorage;
 use PHPWander\Analyser\Scope;
 use PHPWander\Describer\Describer;
+use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 
 /**
@@ -55,7 +56,7 @@ class FuncCall extends AbstractRule implements Rule
 			return [];
 		}
 
-		if ($this->isTainted((int) $node->getAttribute(Taint::ATTR)) && $node->getAttribute(Taint::ATTR_SINK) !== null) {
+		if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && $node->getAttribute(Taint::ATTR_SINK) !== null) {
 			return [
 				sprintf('Sensitive sink %s is tainted.', $name),
 			];
@@ -83,7 +84,7 @@ class FuncCall extends AbstractRule implements Rule
 		}
 
 		if ($arg instanceof Operand\Variable) {
-			return $this->isTainted($scope->getVariableTaint($this->printOperand($arg, $scope)));
+			return $scope->getVariableTaint($this->printOperand($arg, $scope))->isTainted();
 		}
 
 		if ($arg instanceof Operand\Temporary) {
@@ -93,7 +94,7 @@ class FuncCall extends AbstractRule implements Rule
 		}
 
 		if (!empty($arg->ops)) {
-			return $this->isTainted($this->decideOpsTaint($arg->ops));
+			return $this->decideOpsTaint($arg->ops)->isTainted();
 		}
 
 		dump($arg);

@@ -14,8 +14,10 @@ use PHPCfg\Op\Expr\BinaryOp;
 use PHPWander\Broker\Broker;
 use PHPStan\File\FileHelper;
 use PHPWander\Printer\Printer;
+use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 use PHPWander\TransitionFunction;
+use PHPWander\VectorTaint;
 
 class NodeScopeResolver
 {
@@ -47,7 +49,7 @@ class NodeScopeResolver
 	/** @var bool[] filePath(string) => bool(true) */
 	private $analysedFiles = [];
 
-	/** @var int[] filePath(string) => int */
+	/** @var int[] filePath(string) => ScalarTaint */
 	private $includedFilesResults = [];
 
 	/** @var Func[] */
@@ -184,15 +186,15 @@ class NodeScopeResolver
 			$this->processArrayFetch($op, $scope);
 
 		} elseif ($op instanceof BinaryOp\Concat) {
-			$taint = $this->transitionFunction->leastUpperBound(
-				$this->transitionFunction->transfer($scope, $op->left),
-				$this->transitionFunction->transfer($scope, $op->right)
-			);
+			$left = $this->transitionFunction->transfer($scope, $op->left);
+			$right = $this->transitionFunction->transfer($scope, $op->right);
+
+			$taint = $left->leastUpperBound($right);
 			$op->setAttribute(Taint::ATTR, $taint);
 		} elseif ($op instanceof Op\Expr\ConcatList) {
-			$taint = Taint::UNKNOWN;
+			$taint = new ScalarTaint(Taint::UNKNOWN);
 			foreach ($op->list as $part) {
-				$taint = $this->transitionFunction->leastUpperBound($taint, $this->transitionFunction->transfer($scope, $part));
+				$taint = $taint->leastUpperBound($this->transitionFunction->transfer($scope, $part));
 			}
 			$op->setAttribute(Taint::ATTR, $taint);
 		} elseif ($op instanceof Op\Terminal\Return_) {
@@ -235,11 +237,11 @@ class NodeScopeResolver
 					$type = $_op->getAttribute('type');
 					$op->setAttribute('type', $type);
 				} elseif ($_op instanceof Op\Expr\Array_) {
-					$taint = Taint::UNKNOWN;
+					$taint = new ScalarTaint(Taint::UNKNOWN);
 					foreach ($_op->keys as $index => $key) {
 						$arrayItem = $this->printer->printArrayFetch($op->var, $key ?: $index, $scope);
 						$scope = $scope->assignVariable($arrayItem, $this->transitionFunction->transfer($scope, $_op->values[$index]));
-						$taint = $this->transitionFunction->leastUpperBound($taint, $scope->getVariableTaint($arrayItem));
+						$taint = $taint->leastUpperBound($scope->getVariableTaint($arrayItem));
 					}
 
 					$_op->setAttribute(Taint::ATTR, $taint);
@@ -331,13 +333,13 @@ class NodeScopeResolver
 		return $currentScope;
 	}
 
-	private function lookForFuncCalls(Operand\Temporary $arg): int
+	private function lookForFuncCalls(Operand\Temporary $arg): Taint
 	{
-		$taint = Taint::UNKNOWN;
+		$taint = new ScalarTaint(Taint::UNKNOWN);
 		if ($arg->original === null) {
 			/** @var Op $op */
 			foreach ($arg->ops as $op) {
-				$taint = $this->transitionFunction->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
+				$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
 			}
 		}
 
@@ -367,7 +369,7 @@ class NodeScopeResolver
 					} elseif (array_key_exists($file, $this->includedFilesResults)) {
 						$taint = $this->includedFilesResults[$file];
 					} else {
-						$taint = Taint::UNKNOWN;
+						$taint = new ScalarTaint(Taint::UNKNOWN);
 					}
 
 					$threats = ['result'];
@@ -376,14 +378,14 @@ class NodeScopeResolver
 					$op->setAttribute(Taint::ATTR_THREATS, $threats);
 				}
 			} elseif ($this->isSafeForFileInclusion($op->expr, $scope)) {
-				$taint = Taint::UNTAINTED;
+				$taint = new ScalarTaint(Taint::UNTAINTED);
 				$threats = ['file'];
 
 				$op->setAttribute(Taint::ATTR, $taint);
 				$op->setAttribute(Taint::ATTR_THREATS, $threats);
 
 			} else {
-				$taint = Taint::TAINTED;
+				$taint = new ScalarTaint(Taint::TAINTED);
 				$threats = ['file'];
 
 				$op->setAttribute(Taint::ATTR, $taint);
@@ -497,12 +499,12 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function collectTaintsOfSubgraph(Block $cfg, FuncCallResult $funcCallResult, FuncCallPath $parent = null): int
+	private function collectTaintsOfSubgraph(Block $cfg, FuncCallResult $funcCallResult, FuncCallPath $parent = null): Taint
 	{
-		$taint = Taint::UNKNOWN;
+		$taint = new ScalarTaint(Taint::UNKNOWN);
 		foreach ($cfg->children as $op) {
 			if ($op instanceof Op\Terminal\Return_) {
-				$taint = $this->transitionFunction->leastUpperBound($taint, (int) $op->getAttribute(Taint::ATTR));
+				$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR));
 				$path = new FuncCallPath($parent, $op, FuncCallPath::EVAL_UNCONDITIONAL);
 				$path->setTaint($taint);
 				if ($parent === null) {
@@ -515,18 +517,18 @@ class NodeScopeResolver
 					$funcCallResult->addPath($path);
 				}
 
-				$taint = $this->transitionFunction->leastUpperBound($taint, $path->getTaint());
+				$taint = $taint->leastUpperBound($path->getTaint());
 			} elseif ($op instanceof Op\Stmt\JumpIf) {
 				$ifPath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_TRUE);
 				$ifPath->setTaint($this->collectTaintsOfSubgraph($op->if, $funcCallResult, $ifPath));
-				$taint = $this->transitionFunction->leastUpperBound($taint, $ifPath->getTaint());
+				$taint = $taint->leastUpperBound($ifPath->getTaint());
 				if ($parent === null) {
 					$funcCallResult->addPath($ifPath);
 				}
 
 				$elsePath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_FALSE);
 				$elsePath->setTaint($this->collectTaintsOfSubgraph($op->else, $funcCallResult, $elsePath));
-				$taint = $this->transitionFunction->leastUpperBound($taint, $elsePath->getTaint());
+				$taint = $taint->leastUpperBound($elsePath->getTaint());
 				if ($parent === null) {
 					$funcCallResult->addPath($elsePath);
 				}
