@@ -319,7 +319,7 @@ class NodeScopeResolver
 				$scope = $scope->assignVariable($argName, $argTaint);
 			}
 
-			$this->processNodes($function->cfg->children, $scope, $nodeCallback);
+			$scope = $this->processBlock($function->cfg, $scope, $nodeCallback);
 
 			$funcCallResult = new FuncCallResult($this->transitionFunction);
 			$taint = $this->collectTaintsOfSubgraph($function->cfg, $funcCallResult);
