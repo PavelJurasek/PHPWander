@@ -123,14 +123,17 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function processBlock(Block $block, Scope $scope, callable $opCallback, Op\Stmt $stmt = null, bool $negated = false): Scope
+	private function processBlock(Block $block, Scope $scope, callable $opCallback, Op\Stmt $stmt = null, bool $negated = false, bool $omitSavedBlock = false): Scope
 	{
-		if ($this->blockScopeStorage->hasBlock($block)) {
+		if ($this->blockScopeStorage->hasBlock($block) && !$omitSavedBlock) {
 			return $scope;
 		}
 
 		$blockScope = $scope->enterBlock($block, $stmt, $negated);
-		$this->blockScopeStorage->put($block, $blockScope);
+
+		if (!$omitSavedBlock) {
+			$this->blockScopeStorage->put($block, $blockScope);
+		}
 
 		if ($stmt) {
 			$stmt->setAttribute('block', $blockScope);
@@ -364,7 +367,7 @@ class NodeScopeResolver
 				$scope = $scope->assignVariable($argName, $argTaint);
 			}
 
-			$scope = $this->processBlock($function->cfg, $scope, $nodeCallback);
+			$scope = $this->processBlock($function->cfg, $scope, $nodeCallback, null, false, true);
 
 			$funcCallResult = new FuncCallResult($this->transitionFunction);
 			$taint = $this->collectTaintsOfSubgraph($function->cfg, $funcCallResult);
