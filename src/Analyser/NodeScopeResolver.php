@@ -109,11 +109,13 @@ class NodeScopeResolver
 		callable $opCallback
 	): Scope {
 		foreach ($script->functions as $function) {
-			if (array_key_exists($function->name, $this->functions)) {
-				throw new InvalidStateException(sprintf('Cannot redeclare a function %s.', $function->name));
+			$funcName = $function->class ? sprintf('%s::%s', $function->class->value, $function->name) : $function->name;
+
+			if (array_key_exists($funcName, $this->functions)) {
+				throw new InvalidStateException(sprintf('Cannot redeclare a function %s.', $funcName));
 			}
 
-			$this->functions[$function->name] = $function;
+			$this->functions[$funcName] = $function;
 		}
 
 		$scope = $this->processBlock($script->main->cfg, $scope, $opCallback);
