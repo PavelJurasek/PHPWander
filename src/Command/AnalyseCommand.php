@@ -27,9 +27,9 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 				 new InputArgument('paths', InputArgument::OPTIONAL | InputArgument::IS_ARRAY, 'Paths with source code to run analysis on'),
 				 new InputOption('configuration', 'c', InputOption::VALUE_REQUIRED, 'Path to project configuration file'),
 				 new InputOption(ErrorsConsoleStyle::OPTION_NO_PROGRESS, null, InputOption::VALUE_NONE, 'Do not show progress bar, only results'),
-				 new InputOption('errorFormat', null, InputOption::VALUE_REQUIRED, 'Format in which to print the result of the analysis', 'table'),
-				 new InputOption('autoload', null, InputOption::VALUE_NONE, 'Paths with source code to run analysis on will be autoloaded'),
+				 new InputOption('error-format', null, InputOption::VALUE_REQUIRED, 'Format in which to print the result of the analysis', 'table'),
 				 new InputOption('autoload-file', 'a', InputOption::VALUE_REQUIRED, 'Project\'s additional autoload file path'),
+				 new InputOption('autoload', null, InputOption::VALUE_NONE, 'Paths with source code to run analysis on will be autoloaded'),
 			 ]);
 	}
 
@@ -109,7 +109,7 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 
 		$container = $containerFactory->create($tmpDir, $additionalConfigFiles);
 
-		$errorFormat = $input->getOption('errorFormat');
+		$errorFormat = $input->getOption('error-format');
 		$errorFormatterServiceName = sprintf('errorFormatter.%s', $errorFormat);
 		if (!$container->hasService($errorFormatterServiceName)) {
 			$consoleStyle->error(sprintf(
