@@ -49,8 +49,11 @@ class Scope
 	/** @var FuncCall|NsFuncCall|null */
 	private $funcCall;
 
+	/** @var BoundVariable|null */
+	private $boundVariable;
+
 	/**
-	 * @param FuncCall|NsFuncCall|null $funcCall
+	 * @param FuncCall|NsFuncCall|Expr\MethodCall|null $funcCall
 	 */
 	public function __construct(
 		string $file,
@@ -62,7 +65,8 @@ class Scope
 		array $statementStack = [],
 		bool $negated = false,
 		Func $func = null,
-		Expr $funcCall = null
+		Expr $funcCall = null,
+		BoundVariable $boundVariable = null
 	) {
 		if ($funcCall !== null) {
 			$this->assertFuncCallArgument($funcCall);
@@ -80,6 +84,7 @@ class Scope
 		$this->negated = $negated;
 		$this->func = $func;
 		$this->funcCall = $funcCall;
+		$this->boundVariable = $boundVariable;
 	}
 
 	public function getFile(): string
@@ -102,7 +107,10 @@ class Scope
 			$this->getTemporaryTaints(),
 			$this->blocks,
 			$this->statementStack,
-			$this->negated
+			$this->negated,
+			$this->func,
+			$this->funcCall,
+			$this->boundVariable
 		);
 	}
 
@@ -116,7 +124,10 @@ class Scope
 			$this->getTemporaryTaints(),
 			$this->blocks,
 			$this->statementStack,
-			$this->negated
+			$this->negated,
+			$this->func,
+			$this->funcCall,
+			$this->boundVariable
 		);
 	}
 
@@ -138,7 +149,10 @@ class Scope
 			$this->getTemporaryTaints(),
 			$blocks,
 			$statements,
-			$negated
+			$negated,
+			$this->func,
+			$this->funcCall,
+			$this->boundVariable
 		);
 	}
 
@@ -223,6 +237,10 @@ class Scope
 
 	public function getVariableTaint(string $variableName): Taint
 	{
+		if ($this->boundVariable && $match = $this->matchBoundVariable($variableName)) {
+			return $this->boundVariable->getTaint()->getTaint($match);
+		}
+
 		if (!$this->hasVariableTaint($variableName)) {
 			if ($this->parentScope) {
 				return $this->parentScope->getVariableTaint($variableName);
@@ -237,6 +255,13 @@ class Scope
 	public function assignVariable(string $variableName, Taint $taint): self
 	{
 		$variableTaints = $this->getVariableTaints();
+
+		if ($this->boundVariable) {
+			$match = $this->matchBoundVariable($variableName);
+			if ($match) {
+				$this->boundVariable->getTaint()->addTaint($match, $taint);
+			}
+		}
 		$variableTaints[$variableName] = $taint;
 
 		return new self(
@@ -247,7 +272,10 @@ class Scope
 			$this->getTemporaryTaints(),
 			$this->blocks,
 			$this->statementStack,
-			$this->negated
+			$this->negated,
+			$this->func,
+			$this->funcCall,
+			$this->boundVariable
 		);
 	}
 
@@ -267,7 +295,10 @@ class Scope
 			$this->getTemporaryTaints(),
 			$this->blocks,
 			$this->statementStack,
-			$this->negated
+			$this->negated,
+			$this->func,
+			$this->funcCall,
+			$this->boundVariable
 		);
 	}
 
@@ -297,7 +328,10 @@ class Scope
 			$temporaryTaints,
 			$this->blocks,
 			$this->statementStack,
-			$this->negated
+			$this->negated,
+			$this->func,
+			$this->funcCall,
+			$this->boundVariable
 		);
 	}
 
@@ -345,9 +379,9 @@ class Scope
 	}
 
 	/**
-	 * @param FuncCall|NsFuncCall $call
+	 * @param FuncCall|NsFuncCall|Expr\MethodCall $call
 	 */
-	public function enterFuncCall(Func $func, $call): self
+	public function enterFuncCall(Func $func, $call, ?BoundVariable $boundVariable = null): self
 	{
 		$this->assertFuncCallArgument($call);
 
@@ -361,7 +395,8 @@ class Scope
 			$this->statementStack,
 			$this->negated,
 			$func,
-			$call
+			$call,
+			$boundVariable
 		);
 	}
 
@@ -375,9 +410,21 @@ class Scope
 		return $this->parentScope;
 	}
 
+	public function getBoundVariable(): ?BoundVariable
+	{
+		return $this->boundVariable;
+	}
+
+	private function matchBoundVariable(string $variableName): ?string
+	{
+		$match = preg_match(sprintf('~^\%s->([a-zA-Z_][a-zA-Z0-9_]+)\z~', $this->boundVariable->getVar()), $variableName, $m);
+
+		return $match === 1 ? $m[1] : null;
+	}
+
 	private function assertFuncCallArgument($call): void
 	{
-		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall) {
+		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall && !$call instanceof Expr\MethodCall) {
 			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall or NsFuncCall, %s', __METHOD__, get_class($call)));
 		}
 	}

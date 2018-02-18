@@ -2,9 +2,10 @@
 
 namespace PHPWander\Analyser;
 
-use PHPCfg\Block;
 use PHPCfg\Func;
+use PHPCfg\Op\Expr;
 use PHPCfg\Op\Expr\FuncCall;
+use PHPCfg\Op\Expr\NsFuncCall;
 
 /**
  * @author Pavel Jurásek
@@ -15,8 +16,9 @@ class FuncCallStorage
 	/** @var FuncCallMapping[] */
 	private $storage = [];
 
-	public function put(FuncCall $funcCall, FuncCallMapping $mapping): void
+	public function put(Expr $funcCall, FuncCallMapping $mapping): void
 	{
+		$this->assertFuncCallArgument($funcCall);
 		$this->storage[$this->hash($funcCall)] = $mapping;
 	}
 
@@ -31,8 +33,10 @@ class FuncCallStorage
 		return null;
 	}
 
-	public function get(FuncCall $funcCall): ?FuncCallMapping
+	public function get(Expr $funcCall): ?FuncCallMapping
 	{
+		$this->assertFuncCallArgument($funcCall);
+
 		$hash = $this->hash($funcCall);
 		if (array_key_exists($hash, $this->storage)) {
 			return $this->storage[$hash];
@@ -44,6 +48,13 @@ class FuncCallStorage
 	private function hash($object): string
 	{
 		return substr(md5(spl_object_hash($object)), 0, 4);
+	}
+
+	private function assertFuncCallArgument($call): void
+	{
+		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall && !$call instanceof Expr\MethodCall) {
+			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall or NsFuncCall, %s', __METHOD__, get_class($call)));
+		}
 	}
 
 }
