@@ -12,16 +12,12 @@ use PHPCfg\Operand;
 use PHPCfg\Operand\Temporary;
 use PHPWander\ScalarTaint;
 use PHPWander\Taint;
-use PHPWander\TransitionFunction;
 
 class Scope
 {
 
 	/** @var Scope|null */
 	private $parentScope;
-
-	/** @var TransitionFunction */
-	private $transitionFunction;
 
 	/** @var Taint */
 	private $resultTaint;
@@ -57,7 +53,6 @@ class Scope
 	 * @param FuncCall|NsFuncCall|null $funcCall
 	 */
 	public function __construct(
-		TransitionFunction $transitionFunction,
 		string $file,
 		string $analysedContextFile = null,
 		Scope $parentScope = null,
@@ -75,7 +70,6 @@ class Scope
 
 		$this->resultTaint = new ScalarTaint(Taint::UNKNOWN);
 
-		$this->transitionFunction = $transitionFunction;
 		$this->file = $file;
 		$this->analysedContextFile = $analysedContextFile !== null ? $analysedContextFile : $file;
 		$this->parentScope = $parentScope;
@@ -101,7 +95,6 @@ class Scope
 	public function enterFile(string $file): self
 	{
 		return new self(
-			$this->transitionFunction,
 			$file,
 			$this->getFile(),
 			$this,
@@ -116,7 +109,6 @@ class Scope
 	public function leaveFile(): self
 	{
 		return new self(
-			$this->transitionFunction,
 			$this->parentScope->getFile(),
 			$this->parentScope->getAnalysedContextFile(),
 			$this->parentScope,
@@ -139,7 +131,6 @@ class Scope
 		}
 
 		return new self(
-			$this->transitionFunction,
 			$this->file,
 			$this->getFile(),
 			$this,
@@ -249,7 +240,6 @@ class Scope
 		$variableTaints[$variableName] = $taint;
 
 		return new self(
-			$this->transitionFunction,
 			$this->getFile(),
 			$this->getAnalysedContextFile(),
 			$this->parentScope,
@@ -270,7 +260,6 @@ class Scope
 		unset($variableTaints[$variableName]);
 
 		return new self(
-			$this->transitionFunction,
 			$this->getFile(),
 			$this->getAnalysedContextFile(),
 			$this->parentScope,
@@ -301,7 +290,6 @@ class Scope
 		$temporaryTaints[$this->hash($temporary)] = $taint;
 
 		return new self(
-			$this->transitionFunction,
 			$this->getFile(),
 			$this->getAnalysedContextFile(),
 			$this->parentScope,
@@ -364,7 +352,6 @@ class Scope
 		$this->assertFuncCallArgument($call);
 
 		return new self(
-			$this->transitionFunction,
 			$this->file,
 			$this->getFile(),
 			$this,

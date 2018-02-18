@@ -140,7 +140,7 @@ class Analyser
 				$fileErrors = [];
 				$this->nodeScopeResolver->processScript(
 					$script,
-					new Scope($this->transitionFunction, $file),
+					new Scope($file),
 					function (Op $node, Scope $scope) use (&$fileErrors) {
 						$classes = array_merge([get_class($node)], class_parents($node));
 						foreach ($this->registry->getRules($classes) as $rule) {
