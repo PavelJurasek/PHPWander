@@ -152,7 +152,7 @@ class StandardDescriber implements Describer
 			$str = sprintf('%s%s', $taintingCallPath->getEvaluation() === FuncCallPath::EVAL_FALSE ? 'not ' : '', $this->describe($taintingCallPath->getStatement(), $scope));
 
 			foreach ($taintingCallPath->getChildren() as $child) {
-				if ($this->isTainted($child->getTaint())) {
+				if ($child->getTaint()->isTainted()) {
 					$str .= ' - ' . $this->describeFuncCallPath($child, $scope);
 				}
 			}
@@ -163,11 +163,6 @@ class StandardDescriber implements Describer
 		}
 
 		return $str;
-	}
-
-	protected function isTainted(int $taint): bool
-	{
-		return $taint === Taint::TAINTED || $taint === Taint::BOTH;
 	}
 
 	/**
