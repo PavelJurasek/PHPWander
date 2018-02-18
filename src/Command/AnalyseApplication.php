@@ -89,7 +89,7 @@ class AnalyseApplication
 			$postFileCallback
 		));
 
-		if (isset($progressStarted) && $progressStarted) {
+		if ($progressStarted) {
 			$style->progressFinish();
 		}
 
