@@ -54,9 +54,10 @@ class VectorTaint extends Taint
 	{
 		if ($other instanceof VectorTaint) {
 			$taint = $other->getOverallTaint();
-		} else {
-			/** @var ScalarTaint $other */
+		} elseif ($other instanceof ScalarTaint) {
 			$taint = $other->getTaint();
+		} else {
+			throw new \InvalidArgumentException(sprintf('Unknow instance of taint: %s', get_class($other)));
 		}
 
 		return new ScalarTaint(max($this->getOverallTaint()->getTaint(), $taint));

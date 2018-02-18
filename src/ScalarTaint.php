@@ -25,10 +25,14 @@ class ScalarTaint extends Taint
 	{
 		if ($other instanceof VectorTaint) {
 			return $other->leastUpperBound($this);
+		} elseif ($other instanceof ScalarTaint) {
+			$taint = $other->getTaint();
+		} else {
+			throw new \InvalidArgumentException(sprintf('Unknow instance of taint: %s', get_class($other)));
 		}
 
 		/** @var ScalarTaint $other */
-		return new ScalarTaint(max($this->getTaint(), $other->getTaint()));
+		return new ScalarTaint(max($this->getTaint(), $taint));
 	}
 
 	public function isTainted(): bool

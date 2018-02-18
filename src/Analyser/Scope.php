@@ -31,7 +31,7 @@ class Scope
 	/** @var Taint[] */
 	private $variableTaints;
 
-	/** @var int[] */
+	/** @var Taint[] */
 	private $temporaries;
 
 	/** @var Block[] */
@@ -46,7 +46,7 @@ class Scope
 	/** @var Func|null */
 	private $func;
 
-	/** @var FuncCall|NsFuncCall|null */
+	/** @var FuncCall|NsFuncCall|Expr\MethodCall|null */
 	private $funcCall;
 
 	/** @var BoundVariable|null */
@@ -302,8 +302,12 @@ class Scope
 		);
 	}
 
-	public function hasTemporaryTaint(Temporary $temporary): bool
+	public function hasTemporaryTaint(Operand $temporary): bool
 	{
+		if (!$temporary instanceof Temporary) {
+			return false;
+		}
+
 		return array_key_exists($this->hash($temporary), $this->temporaries);
 	}
 
@@ -335,32 +339,18 @@ class Scope
 		);
 	}
 
-	public function getTemporaryTaint(Temporary $temporary): Taint
+	public function getTemporaryTaint(Operand $temporary): Taint
 	{
+		if (!$temporary instanceof Temporary) {
+			throw new \InvalidArgumentException('$temporary must be instance of Temporary');
+		}
+
 		return $this->temporaries[$this->hash($temporary)];
 	}
 
 	public function getTemporaryTaints(): array
 	{
 		return $this->temporaries;
-	}
-
-	/**
-	 * @return string[]
-	 */
-	public function debug(): array
-	{
-		$descriptions = [];
-		foreach ($this->getVariableTaints() as $name => $variableTaint) {
-			$descriptions[sprintf('$%s', $name)] = [
-				Taint::UNKNOWN => 'unknown',
-				Taint::UNTAINTED => 'untainted',
-				Taint::TAINTED => 'tainted',
-				Taint::BOTH => 'both',
-			][$variableTaint];
-		}
-
-		return $descriptions;
 	}
 
 	public function getResultTaint(): Taint

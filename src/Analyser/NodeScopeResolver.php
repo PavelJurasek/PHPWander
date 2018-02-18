@@ -49,7 +49,7 @@ class NodeScopeResolver
 	/** @var bool[] filePath(string) => bool(true) */
 	private $analysedFiles = [];
 
-	/** @var int[] filePath(string) => ScalarTaint */
+	/** @var Taint[] filePath(string) => ScalarTaint */
 	private $includedFilesResults = [];
 
 	/** @var Func[] */

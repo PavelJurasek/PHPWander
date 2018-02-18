@@ -171,7 +171,7 @@ class TransitionFunction
 		if ($op->expr->original instanceof Operand\Variable) {
 			$variableName = $this->printer->printOperand($op->expr->original, $scope);
 
-			$trusted = $scope->hasVariableTaint($variableName) && $scope->getVariableTaint($variableName) === Taint::UNTAINTED;
+			$trusted = $scope->hasVariableTaint($variableName) && !$scope->getVariableTaint($variableName)->isTainted();
 		}
 
 		$taint = new ScalarTaint(Taint::UNTAINTED);
