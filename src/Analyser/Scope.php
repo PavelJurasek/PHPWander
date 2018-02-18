@@ -273,7 +273,7 @@ class Scope
 
 	public function hasTemporaryTaint(Temporary $temporary): bool
 	{
-		return isset($this->temporaries[spl_object_hash($temporary)]);
+		return array_key_exists($this->hash($temporary), $this->temporaries);
 	}
 
 	public function assignTemporary(Operand $temporary, Taint $taint = null): self
@@ -301,9 +301,9 @@ class Scope
 		);
 	}
 
-	public function getTemporaryTaint(Temporary $temporary): int
+	public function getTemporaryTaint(Temporary $temporary): Taint
 	{
-		return $this->temporaries[spl_object_hash($temporary)];
+		return $this->temporaries[$this->hash($temporary)];
 	}
 
 	public function getTemporaryTaints(): array
