@@ -168,16 +168,12 @@ class NodeScopeResolver
 		} elseif ($op instanceof Op\Stmt\JumpIf) {
 			$scope = $this->processIf($op, $scope, $nodeCallback);
 
-		} elseif ($op instanceof Op\Stmt\Function_) {
-//			$scope = $this->enterFunction($scope, $op);
-
-		} elseif ($op instanceof Op\Expr\Closure) {
-
 		} elseif ($op instanceof Assign) {
 			$scope = $this->processAssign($scope, $op);
 
 		} elseif ($op instanceof Op\Expr\FuncCall) {
 			$funcName = $this->printer->printOperand($op->name, $scope);
+
 			if (array_key_exists($funcName, $this->functions)) {
 				$this->processFunctionCall($this->functions[$funcName], $op, $scope, $nodeCallback);
 			} else {
@@ -194,12 +190,16 @@ class NodeScopeResolver
 
 			$taint = $left->leastUpperBound($right);
 			$op->setAttribute(Taint::ATTR, $taint);
+
 		} elseif ($op instanceof Op\Expr\ConcatList) {
 			$taint = new ScalarTaint(Taint::UNKNOWN);
+
 			foreach ($op->list as $part) {
 				$taint = $taint->leastUpperBound($this->transitionFunction->transfer($scope, $part));
 			}
+
 			$op->setAttribute(Taint::ATTR, $taint);
+
 		} elseif ($op instanceof Op\Terminal\Return_) {
 			$taint = $this->transitionFunction->transferOp($scope, $op, true);
 			$op->setAttribute(Taint::ATTR, $taint);
@@ -207,8 +207,10 @@ class NodeScopeResolver
 			if (!$scope->isInFuncCall()) {
 				$scope->setResultTaint($taint);
 			}
+
 		} elseif ($op instanceof Op\Expr\Cast) {
 			$scope = $this->transitionFunction->transferCast($scope, $op);
+
 		} elseif ($op instanceof Op\Expr\MethodCall) {
 			dump(__METHOD__);
 			dump($op);
@@ -216,11 +218,13 @@ class NodeScopeResolver
 		} elseif ($op instanceof Op\Iterator\Reset) {
 			$name = $this->printer->printOperand($op->var, $scope);
 			$scope = $scope->assignVariable($name, $this->transitionFunction->transfer($scope, $op->var));
+
 		} elseif ($op instanceof Op\Iterator\Value) {
 			$taint = $this->transitionFunction->transfer($scope, $op->var);
 
 			$op->setAttribute(Taint::ATTR, $taint);
 			$scope = $scope->assignTemporary($op->result, $taint);
+
 		}
 
 		$nodeCallback($op, $scope);
