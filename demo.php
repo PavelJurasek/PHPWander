@@ -38,6 +38,14 @@ $analyser = $container->getByType(\PHPWander\Analyser\Analyser::class);
 
 $file = realpath(getcwd() . '/tests/cases/3/');
 
+$robotLoader = new \Nette\Loaders\RobotLoader();
+$robotLoader->acceptFiles = array_map(function (string $extension): string {
+	return sprintf('*.%s', $extension);
+}, ['php']);
+$robotLoader->setTempDirectory($tmpDir);
+$robotLoader->addDirectory($file);
+$robotLoader->register();
+
 $errors = $analyser->analyse([
 	$file,
 ]);
