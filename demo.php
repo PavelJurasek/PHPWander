@@ -5,14 +5,16 @@ require_once __DIR__ . '/vendor/autoload.php';
 Tracy\Debugger::enable();
 
 function taint($variables) {
-	$result = array_map(function ($taint) {
-		return [
+	$callback = function (\PHPWander\Taint $taint) use (&$callback) {
+		return $taint instanceof \PHPWander\ScalarTaint ? [
 			\PHPWander\Taint::UNKNOWN => 'unknown',
 			\PHPWander\Taint::TAINTED => 'tainted',
 			\PHPWander\Taint::UNTAINTED => 'untainted',
 			\PHPWander\Taint::BOTH => 'both',
-		][$taint];
-	}, $variables);
+		][$taint->getTaint()] : array_map($callback, $taint->getTaints());
+	};
+
+	$result = array_map($callback, $variables);
 	dump($result);
 }
 
