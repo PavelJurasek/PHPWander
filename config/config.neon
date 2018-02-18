@@ -41,6 +41,8 @@ services:
 
 	nodeTraverser: PhpParser\NodeTraverser
 
+	- PHPWander\Visitor\IClassFinder
+
 	stanParser: PHPStan\Parser\DirectParser
 
 	sources:

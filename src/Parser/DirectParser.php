@@ -4,9 +4,7 @@ namespace PHPWander\Parser;
 
 use PHPCfg\Script;
 use PHPCfg\Traverser;
-use PHPCfg\Visitor\CallFinder;
-use PHPCfg\Visitor\DeclarationFinder;
-use PHPCfg\Visitor\VariableFinder;
+use PHPWander\Visitor\IClassFinder;
 
 class DirectParser implements Parser
 {
@@ -17,26 +15,30 @@ class DirectParser implements Parser
 	/** @var \PHPStan\Parser\Parser */
 	private $astParser;
 
-	/** @var Traverser */
+	/** @var Traverser|null */
 	private $traverser;
 
-	public function __construct(\PHPCfg\Parser $cfgParser, \PHPStan\Parser\Parser $astParser)
+	/** @var IClassFinder */
+	private $classFinderFactory;
+
+	public function __construct(\PHPCfg\Parser $cfgParser, \PHPStan\Parser\Parser $astParser, IClassFinder $classFinderFactory)
 	{
 		$this->cfgParser = $cfgParser;
 		$this->astParser = $astParser;
+		$this->classFinderFactory = $classFinderFactory;
 	}
 
 	public function parseFile(string $file): Script
 	{
-		return $this->traverse($this->cfgParser->parseAst($this->astParser->parseFile($file), $file));
+		return $this->traverseCfg($this->cfgParser->parseAst($this->astParser->parseFile($file), $file));
 	}
 
 	public function parseString(string $sourceCode, string $file): Script
 	{
-		return $this->traverse($this->cfgParser->parseAst($this->astParser->parseString($sourceCode), $file));
+		return $this->traverseCfg($this->cfgParser->parseAst($this->astParser->parseString($sourceCode), $file));
 	}
 
-	private function traverse(Script $script): Script
+	private function traverseCfg(Script $script): Script
 	{
 //		$declarations = new DeclarationFinder;
 //		$variables = new VariableFinder;
@@ -53,6 +55,13 @@ class DirectParser implements Parser
 //		dump($variables);
 //		dump($calls);
 //		die;
+
+		if ($this->traverser === null) {
+			$this->traverser = new Traverser;
+			$this->traverser->addVisitor($this->classFinderFactory->create());
+		}
+
+		$this->traverser->traverse($script);
 
 		return $script;
 	}

@@ -2,42 +2,15 @@
 
 namespace PHPWander\Broker;
 
-use PHPCfg\Operand;
-use PHPWander\Analyser\Scope;
-use PHPStan\PhpDoc\Tag\ParamTag;
-use PHPStan\Reflection\ClassReflection;
-use PHPStan\Type\Type;
+use PHPWander\Parser\Parser;
+use PHPWander\Reflection\ClassReflection;
 use ReflectionClass;
 
 class Broker
 {
 
-	/** @var \PHPStan\Reflection\PropertiesClassReflectionExtension[] */
-	private $propertiesClassReflectionExtensions;
-
-	/** @var \PHPStan\Reflection\MethodsClassReflectionExtension[] */
-	private $methodsClassReflectionExtensions;
-
-	/** @var \PHPStan\Type\DynamicMethodReturnTypeExtension[] */
-	private $dynamicMethodReturnTypeExtensions = [];
-
-	/** @var \PHPStan\Type\DynamicStaticMethodReturnTypeExtension[] */
-	private $dynamicStaticMethodReturnTypeExtensions = [];
-
-	/** @var \PHPStan\Type\DynamicFunctionReturnTypeExtension[] */
-	private $dynamicFunctionReturnTypeExtensions = [];
-
-	/** @var \PHPStan\Reflection\ClassReflection[] */
+	/** @var ClassReflection[] */
 	private $classReflections = [];
-
-	/** @var \PHPStan\Reflection\FunctionReflectionFactory */
-	private $functionReflectionFactory;
-
-	/** @var \PHPStan\Type\FileTypeMapper */
-	private $fileTypeMapper;
-
-	/** @var \PHPStan\Reflection\FunctionReflection[] */
-	private $functionReflections = [];
 
 	/** @var null|self */
 	private static $instance;
@@ -45,47 +18,12 @@ class Broker
 	/** @var bool[] */
 	private $hasClassCache;
 
-	/**
-	 * @param \PHPStan\Reflection\PropertiesClassReflectionExtension[] $propertiesClassReflectionExtensions
-	 * @param \PHPStan\Reflection\MethodsClassReflectionExtension[] $methodsClassReflectionExtensions
-	 * @param \PHPStan\Type\DynamicMethodReturnTypeExtension[] $dynamicMethodReturnTypeExtensions
-	 * @param \PHPStan\Type\DynamicStaticMethodReturnTypeExtension[] $dynamicStaticMethodReturnTypeExtensions
-	 * @param \PHPStan\Type\DynamicFunctionReturnTypeExtension[] $dynamicFunctionReturnTypeExtensions
-	 * @param \PHPStan\Reflection\FunctionReflectionFactory $functionReflectionFactory
-	 * @param \PHPStan\Type\FileTypeMapper $fileTypeMapper
-	 */
-	public function __construct(
-//		array $propertiesClassReflectionExtensions,
-//		array $methodsClassReflectionExtensions,
-//		array $dynamicMethodReturnTypeExtensions,
-//		array $dynamicStaticMethodReturnTypeExtensions,
-//		array $dynamicFunctionReturnTypeExtensions,
-//		FunctionReflectionFactory $functionReflectionFactory,
-//		FileTypeMapper $fileTypeMapper
-	)
+	/** @var Parser */
+	private $parser;
+
+	public function __construct(Parser $parser)
 	{
-//		$this->propertiesClassReflectionExtensions = $propertiesClassReflectionExtensions;
-//		$this->methodsClassReflectionExtensions = $methodsClassReflectionExtensions;
-//		foreach (array_merge($propertiesClassReflectionExtensions, $methodsClassReflectionExtensions, $dynamicMethodReturnTypeExtensions, $dynamicStaticMethodReturnTypeExtensions, $dynamicFunctionReturnTypeExtensions) as $extension) {
-//			if ($extension instanceof BrokerAwareExtension) {
-//				$extension->setBroker($this);
-//			}
-//		}
-
-//		foreach ($dynamicMethodReturnTypeExtensions as $dynamicMethodReturnTypeExtension) {
-//			$this->dynamicMethodReturnTypeExtensions[$dynamicMethodReturnTypeExtension->getClass()][] = $dynamicMethodReturnTypeExtension;
-//		}
-
-//		foreach ($dynamicStaticMethodReturnTypeExtensions as $dynamicStaticMethodReturnTypeExtension) {
-//			$this->dynamicStaticMethodReturnTypeExtensions[$dynamicStaticMethodReturnTypeExtension->getClass()][] = $dynamicStaticMethodReturnTypeExtension;
-//		}
-
-//		foreach ($dynamicFunctionReturnTypeExtensions as $functionReturnTypeExtension) {
-//			$this->dynamicFunctionReturnTypeExtensions[] = $functionReturnTypeExtension;
-//		}
-
-//		$this->functionReflectionFactory = $functionReflectionFactory;
-//		$this->fileTypeMapper = $fileTypeMapper;
+		$this->parser = $parser;
 
 		self::$instance = $this;
 	}
@@ -98,66 +36,21 @@ class Broker
 		return self::$instance;
 	}
 
-	/**
-	 * @param string $className
-	 * @return \PHPStan\Type\DynamicMethodReturnTypeExtension[]
-	 */
-	public function getDynamicMethodReturnTypeExtensionsForClass(string $className): array
+	public function addClass(string $className, ClassReflection $classReflection): void
 	{
-		return $this->getDynamicExtensionsForType($this->dynamicMethodReturnTypeExtensions, $className);
+		$this->classReflections[$className] = $classReflection;
 	}
 
-	/**
-	 * @param string $className
-	 * @return \PHPStan\Type\DynamicStaticMethodReturnTypeExtension[]
-	 */
-	public function getDynamicStaticMethodReturnTypeExtensionsForClass(string $className): array
-	{
-		return $this->getDynamicExtensionsForType($this->dynamicStaticMethodReturnTypeExtensions, $className);
-	}
-
-	/**
-	 * @return \PHPStan\Type\DynamicFunctionReturnTypeExtension[]
-	 */
-	public function getDynamicFunctionReturnTypeExtensions(): array
-	{
-		return $this->dynamicFunctionReturnTypeExtensions;
-	}
-
-	/**
-	 * @param \PHPStan\Type\DynamicMethodReturnTypeExtension[]|\PHPStan\Type\DynamicStaticMethodReturnTypeExtension[] $extensions
-	 * @param string $className
-	 * @return mixed[]
-	 */
-	private function getDynamicExtensionsForType(array $extensions, string $className): array
-	{
-		$extensionsForClass = [];
-		$class = $this->getClass($className);
-		foreach (array_merge([$className], $class->getParentClassesNames(), $class->getNativeReflection()->getInterfaceNames()) as $extensionClassName) {
-			if (!isset($extensions[$extensionClassName])) {
-				continue;
-			}
-
-			$extensionsForClass = array_merge($extensionsForClass, $extensions[$extensionClassName]);
-		}
-
-		return $extensionsForClass;
-	}
-
-	public function getClass(string $className): \PHPStan\Reflection\ClassReflection
+	public function getClass(string $className): ClassReflection
 	{
 		if (!$this->hasClass($className)) {
-			throw new \PHPStan\Broker\ClassNotFoundException($className);
+			throw new ClassNotFoundException($className);
 		}
 
 		if (!isset($this->classReflections[$className])) {
 			$reflectionClass = new ReflectionClass($className);
-			$classReflection = $this->getClassFromReflection(
-				$reflectionClass,
-				$reflectionClass->getName(),
-				$reflectionClass->isAnonymous()
-			);
-			$this->classReflections[$className] = $classReflection;
+			$classReflection = $this->getClassFromReflection($reflectionClass);
+
 			if ($className !== $reflectionClass->getName()) {
 				// class alias optimization
 				$this->classReflections[$reflectionClass->getName()] = $classReflection;
@@ -167,19 +60,12 @@ class Broker
 		return $this->classReflections[$className];
 	}
 
-	public function getClassFromReflection(\ReflectionClass $reflectionClass, string $displayName, bool $anonymous): \PHPStan\Reflection\ClassReflection
+	public function getClassFromReflection(\ReflectionClass $reflectionClass): ClassReflection
 	{
 		$className = $reflectionClass->getName();
 		if (!isset($this->classReflections[$className])) {
-			$classReflection = new ClassReflection(
-				$this,
-				$this->propertiesClassReflectionExtensions,
-				$this->methodsClassReflectionExtensions,
-				$displayName,
-				$reflectionClass,
-				$anonymous
-			);
-			$this->classReflections[$className] = $classReflection;
+			// parsed file is traversed and class passed via $broker->addClass()
+			$this->parser->parseFile($reflectionClass->getFileName());
 		}
 
 		return $this->classReflections[$className];
@@ -190,13 +76,11 @@ class Broker
 		if (isset($this->hasClassCache[$className])) {
 			return $this->hasClassCache[$className];
 		}
-
-		spl_autoload_register($autoloader = function (string $autoloadedClassName) use ($className) {
-			if ($autoloadedClassName !== $className) {
+		spl_autoload_register($autoloader = function (string $autoloadedClassName) use ($className): void {
+			if ($autoloadedClassName !== $className && !$this->isExistsCheckCall()) {
 				throw new \PHPStan\Broker\ClassAutoloadingException($autoloadedClassName);
 			}
 		});
-
 		try {
 			return $this->hasClassCache[$className] = class_exists($className) || interface_exists($className) || trait_exists($className);
 		} catch (\PHPStan\Broker\ClassAutoloadingException $e) {
@@ -211,95 +95,25 @@ class Broker
 		}
 	}
 
-	public function getFunction(Operand $nameNode, Scope $scope = null): \PHPStan\Reflection\FunctionReflection
+	private function isExistsCheckCall(): bool
 	{
-		$functionName = $this->resolveFunctionName($nameNode, $scope);
-		if ($functionName === null) {
-			throw new \PHPStan\Broker\FunctionNotFoundException((string) $nameNode);
-		}
-
-		$lowerCasedFunctionName = strtolower($functionName);
-		if (!isset($this->functionReflections[$lowerCasedFunctionName])) {
-			$reflectionFunction = new \ReflectionFunction($lowerCasedFunctionName);
-			$phpDocParameterTags = [];
-			$phpDocReturnTag = null;
-			if ($reflectionFunction->getFileName() !== false && $reflectionFunction->getDocComment() !== false) {
-				$fileName = $reflectionFunction->getFileName();
-				$docComment = $reflectionFunction->getDocComment();
-				$resolvedPhpDoc = $this->fileTypeMapper->getResolvedPhpDoc($fileName, null, $docComment);
-				$phpDocParameterTags = $resolvedPhpDoc->getParamTags();
-				$phpDocReturnTag = $resolvedPhpDoc->getReturnTag();
+		$debugBacktrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+		$existsCallTypes = [
+			'class_exists' => true,
+			'interface_exists' => true,
+			'trait_exists' => true,
+		];
+		foreach ($debugBacktrace as $traceStep) {
+			if (
+				isset($traceStep['function'])
+				&& isset($existsCallTypes[$traceStep['function']])
+				// We must ignore the self::hasClass calls
+				&& (!isset($traceStep['file']) || $traceStep['file'] !== __FILE__)
+			) {
+				return true;
 			}
-			$this->functionReflections[$lowerCasedFunctionName] = $this->functionReflectionFactory->create(
-				$reflectionFunction,
-				array_map(function (ParamTag $paramTag): Type {
-					return $paramTag->getType();
-				}, $phpDocParameterTags),
-				$phpDocReturnTag !== null ? $phpDocReturnTag->getType() : null
-			);
 		}
-
-		return $this->functionReflections[$lowerCasedFunctionName];
-	}
-
-	public function hasFunction(\PhpParser\Node\Name $nameNode, Scope $scope = null): bool
-	{
-		return $this->resolveFunctionName($nameNode, $scope) !== null;
-	}
-
-	/**
-	 * @return string|null
-	 */
-	public function resolveFunctionName(Operand $nameNode, Scope $scope = null): ?string
-	{
-		return $this->resolveName($nameNode, function (string $name): bool {
-			return function_exists($name);
-		}, $scope);
-	}
-
-	public function hasConstant(\PhpParser\Node\Name $nameNode, Scope $scope = null): bool
-	{
-		return $this->resolveConstantName($nameNode, $scope) !== null;
-	}
-
-	/**
-	 * @param \PhpParser\Node\Name $nameNode
-	 * @param \PHPStan\Analyser\Scope|null $scope
-	 * @return string|null
-	 */
-	public function resolveConstantName(\PhpParser\Node\Name $nameNode, Scope $scope = null)
-	{
-		return $this->resolveName($nameNode, function (string $name): bool {
-			return defined($name);
-		}, $scope);
-	}
-
-	private function resolveName(
-		Operand $nameNode,
-		\Closure $existsCallback,
-		Scope $scope = null
-	): ?string
-	{
-		if ($nameNode instanceof Operand\Literal) {
-			$name = $nameNode->value;
-		} else {
-			dump(__FUNCTION__);
-			dump($nameNode);
-			die;
-		}
-
-//		if ($scope !== null && $scope->getNamespace() !== null && !$nameNode->isFullyQualified()) {
-//			$namespacedName = sprintf('%s\\%s', $scope->getNamespace(), $name);
-//			if ($existsCallback($namespacedName)) {
-//				return $namespacedName;
-//			}
-//		}
-
-		if ($existsCallback($name)) {
-			return $name;
-		}
-
-		return null;
+		return false;
 	}
 
 }
