@@ -1,9 +1,9 @@
 <?php declare(strict_types = 1);
 
-$a = new A($_GET);
+$a = new B($_GET);
 
 // tainted
-echo $a->getSource('a');
+echo $a->getSource('x');
 
 // ok
-echo (int) $a->getSource('a');
+echo (int) $a->getSource('y');

@@ -3,12 +3,12 @@
 class B
 {
 
-	/** @var array */
-	private $source;
+	/** @var C */
+	private $inner;
 
-	public function __construct(array $source)
+	public function __construct(array $inner)
 	{
-		$this->source = $source;
+		$this->inner = new C($inner);
 	}
 
 	/**
@@ -16,7 +16,7 @@ class B
 	 */
 	public function getSource(string $index)
 	{
-		return $this->source[$index];
+		return $this->inner->getSource($index);
 	}
 
 }
