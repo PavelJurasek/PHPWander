@@ -8,20 +8,38 @@ namespace PHPWander;
 class VectorTaint extends Taint
 {
 
-	/** @var ScalarTaint[] */
+	/** @var string */
+	private $type;
+
+	/** @var Taint[] */
 	private $taints = [];
 
-	public function addTaint($key, ScalarTaint $taint): void
+	public function __construct(string $type)
+	{
+		$this->type = $type;
+	}
+
+	public function getType(): string
+	{
+		return $this->type;
+	}
+
+	public function addTaint($key, Taint $taint): void
 	{
 		$this->taints[$key] = $taint;
 	}
 
-	public function getTaint($key): int
+	public function getTaint($key): Taint
 	{
-		return $this->taints[$key]->getTaint();
+		return $this->taints[$key];
 	}
 
-	private function getOverallTaint(): ScalarTaint
+	public function getTaints(): array
+	{
+		return $this->taints;
+	}
+
+	public function getOverallTaint(): ScalarTaint
 	{
 		$taint = new ScalarTaint(Taint::UNKNOWN);
 
@@ -41,7 +59,7 @@ class VectorTaint extends Taint
 			$taint = $other->getTaint();
 		}
 
-		return new ScalarTaint(max($this->getOverallTaint(), $taint));
+		return new ScalarTaint(max($this->getOverallTaint()->getTaint(), $taint));
 	}
 
 	public function isTainted(): bool
