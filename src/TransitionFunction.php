@@ -154,6 +154,9 @@ class TransitionFunction
 				dump('?');
 				dump($op);
 			}
+		} elseif ($op instanceof Op\Expr\PropertyFetch) {
+			return $scope->getVariableTaint($this->printer->print($op, $scope));
+
 		} elseif ($op instanceof Op\Expr\BinaryOp\Plus) {
 			return new ScalarTaint(Taint::UNTAINTED);
 		}
