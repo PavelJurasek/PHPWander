@@ -157,8 +157,6 @@ class Analyser
 					$progressCallback($file);
 				}
 
-				dump($script);
-
 				$errors = array_merge($errors, $fileErrors);
 			} catch (\PhpParser\Error $e) {
 				$errors[] = new Error($e->getMessage(), $file, $e->getStartLine() !== -1 ? $e->getStartLine() : null);

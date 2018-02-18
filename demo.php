@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/vendor/autoload.php';
 
+$file = realpath(getcwd() . '/tests/cases/1/');
+
 Tracy\Debugger::enable();
 
 function taint($variables) {
@@ -27,16 +29,17 @@ if (!isset($tmpDir)) {
 	$tmpDir = sys_get_temp_dir() . '/phpwander';
 }
 
-$additionalConfigFiles = [
-	__DIR__ . '/config/config.local.neon'
-];
+$additionalConfigFiles = [];
+
+$localConfigFile = __DIR__ . '/config/config.local.neon';
+if (file_exists($localConfigFile)) {
+	$additionalConfigFiles[] = $localConfigFile;
+}
 
 $container = $containerFactory->create($tmpDir, $additionalConfigFiles);
 
 /** @var \PHPWander\Analyser\Analyser $analyser */
 $analyser = $container->getByType(\PHPWander\Analyser\Analyser::class);
-
-$file = realpath(getcwd() . '/tests/cases/3/');
 
 $robotLoader = new \Nette\Loaders\RobotLoader();
 $robotLoader->acceptFiles = array_map(function (string $extension): string {
