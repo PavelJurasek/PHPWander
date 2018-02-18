@@ -10,5 +10,5 @@ if (array_key_exists('file', $_GET)) {
 	require_once __DIR__ . '/' . $_GET['file'] . '.php';
 }
 
-// tainted
+// ok, file doesn't exist
 echo $user['id'];
