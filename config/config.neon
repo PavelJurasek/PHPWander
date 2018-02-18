@@ -1,5 +1,5 @@
 parameters:
-	fileTypes:
+	fileExtensions:
 		- php
 
 	autoloadDirectories: []
@@ -30,10 +30,14 @@ services:
 		class: PHPWander\Rules\Registry
 		factory: @_registryFactory::create()
 
-#	- PHPWander\Command\AnalyseApplication(%filetypes%)
+	-
+		class: PHPWander\Command\AnalyseApplication
+		arguments:
+			fileExtensions: %fileExtensions%
+
 	analyser:
 		class: PHPWander\Analyser\Analyser
-		arguments: [%rootDir%, %fileTypes%]
+		arguments: [%rootDir%, %fileExtensions%]
 
 
 	broker:
@@ -97,3 +101,9 @@ services:
 
 	- PHPWander\Printer\StandardPrinter
 	- PHPWander\Describer\StandardDescriber
+
+	errorFormatter.raw:
+		class: PHPStan\Command\ErrorFormatter\RawErrorFormatter
+
+	errorFormatter.table:
+		class: PHPStan\Command\ErrorFormatter\TableErrorFormatter
