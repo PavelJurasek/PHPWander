@@ -227,11 +227,14 @@ class TransitionFunction
 		return in_array($this->printer->print($variable, $scope), $this->sourceFunctions->getSection('userinput'));
 	}
 
-	public function transferSuperGlobal(Operand\Variable $variable, string $dim): Taint
+	public function transferSuperGlobal(Operand\Variable $variable, ?string $dim = null): Taint
 	{
 		if (
 			$variable->name->value === '_SERVER'
-			&& !in_array($dim, $this->sourceFunctions->getSection('serverParameters'), true)
+			&& (
+				$dim === null
+				|| !in_array($dim, $this->sourceFunctions->getSection('serverParameters'), true)
+			)
 		) {
 			return new ScalarTaint(Taint::UNTAINTED);
 		}
