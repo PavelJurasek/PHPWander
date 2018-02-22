@@ -4,7 +4,6 @@ namespace PHPWander\Printer;
 
 use PHPCfg\Op;
 use PHPCfg\Operand;
-use PHPWander\Analyser\BoundVariable;
 use PHPWander\Analyser\Scope;
 
 /**
@@ -25,11 +24,17 @@ class StandardPrinter implements Printer
 	public function printOp(Op $node, Scope $scope): string
 	{
 		if ($node instanceof Op\Expr\Assign) {
+			if ($node->var instanceof Operand\Temporary && $node->var->original === null && $node->var->ops[0] === $node) {
+				return $this->print($node->expr, $scope);
+			}
+
 			return sprintf('%s = %s', $this->print($node->var, $scope), $this->printOperand($node->expr, $scope, true));
 		} elseif ($node instanceof Op\Expr\ArrayDimFetch) {
-			return sprintf('%s[%s]', $this->printOperand($node->var, $scope), $this->printOperand($node->dim, $scope, true));
+			return sprintf('%s[%s]', $this->printOperand($node->var, $scope), $node->dim === null ? '' : $this->printOperand($node->dim, $scope, true));
 		} elseif ($node instanceof Op\Expr\FuncCall) {
 			return sprintf('%s(%s)', $this->printOperand($node->name, $scope), $this->printList($node->args, $scope));
+		} elseif ($node instanceof Op\Expr\NsFuncCall) {
+			return sprintf('%s(%s)', $this->printOperand($node->nsName, $scope), $this->printList($node->args, $scope));
 		} elseif ($node instanceof Op\Expr\PropertyFetch) {
 			return sprintf('%s->%s', $this->printOperand($node->var, $scope), $this->printOperand($node->name, $scope));
 		} elseif ($node instanceof Op\Stmt\JumpIf) {
@@ -63,6 +68,8 @@ class StandardPrinter implements Printer
 			return $this->printOperand($node->name, $scope);
 		} elseif ($node instanceof Op\Iterator\Valid) {
 			return '*in iteration*';
+		} elseif ($node instanceof Op\Expr\StaticCall) {
+			return sprintf('%s::%s(%s)', $this->print($node->class, $scope), $this->print($node->name, $scope), $this->printList($node->args, $scope));
 		}
 
 		dump(__METHOD__);

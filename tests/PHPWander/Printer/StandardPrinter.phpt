@@ -191,6 +191,13 @@ class StandardPrinterTest extends Tester\TestCase
 				'$var[\'b\']',
 			],
 			[
+				new Op\Expr\ArrayDimFetch(
+					new Temporary(new Variable(new Literal('var')))
+				),
+				$scope,
+				'$var[]',
+			],
+			[
 				new Op\Expr\FuncCall(
 					new Literal('fnc'), []
 				),
@@ -216,6 +223,15 @@ class StandardPrinterTest extends Tester\TestCase
 				),
 				$scope,
 				'fnc(false, 3, $var = \'str\', $var2 = $arg, $arg)',
+			],
+			[
+				new Op\Expr\NsFuncCall(
+					new Literal('fnc'),
+					new Literal('ns\fnc'),
+					[]
+				),
+				$scope,
+				'ns\fnc()',
 			],
 			[
 				new Op\Expr\PropertyFetch(
@@ -311,6 +327,15 @@ class StandardPrinterTest extends Tester\TestCase
 				new Op\Iterator\Valid(new Temporary),
 				$scope,
 				'*in iteration*',
+			],
+			[
+				new Op\Expr\StaticCall(
+					new Literal('StaticClass'),
+					new Literal('staticMethod'),
+					[]
+				),
+				$scope,
+				'StaticClass::staticMethod()',
 			],
 		];
 	}
