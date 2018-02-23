@@ -70,6 +70,10 @@ class StandardPrinter implements Printer
 			return '*in iteration*';
 		} elseif ($node instanceof Op\Expr\StaticCall) {
 			return sprintf('%s::%s(%s)', $this->print($node->class, $scope), $this->print($node->name, $scope), $this->printList($node->args, $scope));
+		} elseif ($node instanceof Op\Expr\Empty_) {
+			return sprintf('empty(%s)', $this->print($node->expr, $scope));
+		} elseif ($node instanceof Op\Phi) {
+			return sprintf('phi(%s)', $this->printList($node->vars, $scope));
 		}
 
 		dump(__METHOD__);

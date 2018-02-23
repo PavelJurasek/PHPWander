@@ -337,6 +337,29 @@ class StandardPrinterTest extends Tester\TestCase
 				$scope,
 				'StaticClass::staticMethod()',
 			],
+			[
+				new Op\Expr\Empty_(
+					new Temporary(new Variable(new Literal('a')))
+				),
+				$scope,
+				'empty($a)'
+			],
+			[
+				function () {
+					$phi = new Op\Phi(new Temporary());
+					$phi->vars = [
+						new ArrayDimFetch(
+							new Variable(new Literal('_GET')),
+							new Literal('x')
+						),
+						new Literal(3)
+					];
+
+					return $phi;
+				},
+				$scope,
+				'phi($_GET[\'x\'], 3)'
+			]
 		];
 	}
 
