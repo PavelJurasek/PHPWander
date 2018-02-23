@@ -7,7 +7,6 @@ use PHPWander\Analyser\Scope;
 use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPWander\Printer\Printer;
-use PHPWander\Taint;
 
 /**
  * @author Pavel Jurásek
@@ -175,7 +174,15 @@ class StandardDescriber implements Describer
 		$str = ' ';
 
 		foreach ($ops as $op) {
-			$str .= sprintf('%s = %s', $this->printer->print($node->var, $scope), $this->describe($op, $scope));
+			if ($op instanceof Op\Phi) {
+				foreach ($op->vars as $var) {
+					if ($scope->hasTemporaryTaint($var) && $scope->getTemporaryTaint($var)->isTainted()) {
+						$str .= sprintf('%s = %s', $this->printer->print($node->var, $scope), $this->printer->print($var, $scope));
+					}
+				}
+			} else {
+				$str .= sprintf('%s = %s', $this->printer->print($node->var, $scope), $this->describe($op, $scope));
+			}
 		}
 
 		return $str;
