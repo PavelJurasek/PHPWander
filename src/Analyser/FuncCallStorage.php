@@ -52,8 +52,8 @@ class FuncCallStorage
 
 	private function assertFuncCallArgument($call): void
 	{
-		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall && !$call instanceof Expr\MethodCall) {
-			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall or NsFuncCall, %s', __METHOD__, get_class($call)));
+		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall && !$call instanceof Expr\MethodCall && !$call instanceof Expr\StaticCall) {
+			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall, NsFuncCall, MethodCall or StaticCall, %s', __METHOD__, get_class($call)));
 		}
 	}
 

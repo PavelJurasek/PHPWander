@@ -5,6 +5,7 @@ $items = [
 	$_GET['b'],
 	'str',
 	4 => 1.4,
+	new \stdClass,
 ];
 
 foreach ($items as $param) {

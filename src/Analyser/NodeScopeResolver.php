@@ -11,9 +11,13 @@ use PHPCfg\Script;
 use PHPCfg\Op\Expr\ArrayDimFetch;
 use PHPCfg\Op\Expr\Assign;
 use PHPCfg\Op\Expr\BinaryOp;
+use PHPStan\Type\MixedType;
+use PHPStan\Type\ObjectType;
+use PHPStan\Type\TrueOrFalseBooleanType;
 use PHPWander\Broker\Broker;
 use PHPStan\File\FileHelper;
 use PHPWander\Printer\Printer;
+use PHPWander\Reflection\ClassReflection;
 use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 use PHPWander\TransitionFunction;
@@ -162,8 +166,8 @@ class NodeScopeResolver
 			$type = $this->printer->printOperand($op->class, $scope);
 			$class = $this->broker->getClass($type);
 
-			$taint = new VectorTaint($type);
-			foreach ($class->getProperties() as $property) {
+			$taint = new VectorTaint(new ObjectType($type));
+			foreach ($class->getPropertyNames() as $property) {
 				$taint->addTaint($property, new ScalarTaint(Taint::UNKNOWN));
 			}
 
@@ -171,14 +175,17 @@ class NodeScopeResolver
 				$method = $class->getMethod('__construct');
 				$methodCall = new Op\Expr\MethodCall(new Operand\Temporary(), new Operand\Literal($method->func->name), $op->args);
 
-				$this->processFunctionCall($method->func, $methodCall, $scope, $nodeCallback, new BoundVariable('$this', $taint));
+				$this->processMethodCall($method->func, $methodCall, $scope, $nodeCallback, $class, new BoundVariable('$this', $taint));
 			}
 
+			$type = $taint->getType();
+
+			$op->setAttribute('type', $type);
 			$op->setAttribute(Taint::ATTR, $taint);
 			$scope = $scope->assignTemporary($op->result, $taint);
 
 		} elseif ($op instanceof Op\Stmt\Jump) {
-			$scope = $this->processBlock($op->target, $scope, $nodeCallback, null, $scope->isNegated());
+			$scope = $this->processBlock($op->target, $scope, $nodeCallback, null, $scope->isNegated(), true);
 
 		} elseif ($op instanceof Op\Expr\Include_) {
 			$scope = $this->processInclude($scope, $op, $nodeCallback);
@@ -230,13 +237,26 @@ class NodeScopeResolver
 			$scope = $this->transitionFunction->transferCast($scope, $op);
 
 		} elseif ($op instanceof Op\Expr\MethodCall) {
-			/** @var VectorTaint $var */
-			$var = $scope->getVariableTaint($this->printer->printOperand($op->var, $scope));
-			$class = $this->broker->getClass($var->getType());
+			$var = $this->printer->printOperand($op->var, $scope);
+
+			if ($scope->isInMethodCall() && $scope->getBoundVariable()->getVar() === $var) {
+				$taint = $scope->getBoundVariable()->getTaint();
+				$class = $scope->getClass();
+			} elseif ($op->var instanceof Operand\Temporary && $op->var->ops[0] instanceof Op\Expr\StaticCall) {
+				$className = $op->var->ops[0]->class->value;
+				$taint = new VectorTaint(new ObjectType($className));
+				$class = $this->broker->getClass($className);
+			} else {
+				/** @var VectorTaint $taint */
+				$taint = $scope->getVariableTaint($var);
+				/** @var ObjectType $type */
+				$type = $taint->getType();
+				$class = $this->broker->getClass($type->getClassName());
+			}
 
 			$method = $class->getMethod($this->printer->printOperand($op->name, $scope));
 
-			$this->processFunctionCall($method->func, $op, $scope, $nodeCallback, new BoundVariable('$this', $var));
+			$this->processMethodCall($method->func, $op, $scope, $nodeCallback, $class, new BoundVariable('$this', $taint));
 
 		} elseif ($op instanceof Op\Iterator\Reset) {
 			$name = $this->printer->printOperand($op->var, $scope);
@@ -248,6 +268,36 @@ class NodeScopeResolver
 			$op->setAttribute(Taint::ATTR, $taint);
 			$scope = $scope->assignTemporary($op->result, $taint);
 
+		} elseif ($op instanceof Op\Expr\BooleanNot) {
+			$taint = new ScalarTaint(Taint::UNTAINTED, new TrueOrFalseBooleanType);
+			$scope = $scope->assignTemporary($op->result, $taint);
+			$op->setAttribute(Taint::ATTR, $taint);
+		} elseif ($op instanceof Op\Expr\StaticCall) {
+			$className = $this->printer->printOperand($op->class, $scope);
+			$class = $this->broker->getClass($className);
+
+			$method = $class->getMethod($this->printer->printOperand($op->name, $scope));
+
+			if ($class->getStaticPropertiesTaint() === null) {
+				$class->setStaticPropertiesTaint($this->processClassStaticProperties($class, $scope));
+			}
+
+			$this->processMethodCall($method->func, $op, $scope, $nodeCallback, $class, new BoundVariable('self', $class->getStaticPropertiesTaint()));
+
+		} elseif ($op instanceof Op\Expr\StaticPropertyFetch) {
+			$className = $this->printer->printOperand($op->class, $scope);
+			$class = $this->broker->getClass($className);
+
+			if ($class->getStaticPropertiesTaint() === null) {
+				$class->setStaticPropertiesTaint($this->processClassStaticProperties($class, $scope));
+			}
+
+			$propertyName = $this->printer->printOperand($op->name, $scope);
+			$staticProperties = $class->getStaticPropertiesTaint();
+
+			$taints = $staticProperties->getTaint($propertyName);
+
+			$op->setAttribute(Taint::ATTR, $taints);
 		}
 
 		$nodeCallback($op, $scope);
@@ -257,23 +307,19 @@ class NodeScopeResolver
 
 	private function processAssign(Scope $scope, Assign $op): Scope
 	{
-		$name = $this->printer->printOperand($op->var, $scope);
+		if (!$op->var instanceof Operand\Temporary || $op->var->original !== null || $op->var->ops[0] !== $op) {
+			$name = $this->printer->printOperand($op->var, $scope);
+		}
 
 		if ($op->expr instanceof Operand\Temporary) {
 			foreach ($op->expr->ops as $_op) {
 				if ($_op instanceof Op\Expr && $scope->hasTemporaryTaint($_op->result)) {
 					$taint = $scope->getTemporaryTaint($_op->result);
-				} elseif ($_op instanceof Op\Expr\Closure) {
+					$type = $_op->getAttribute('type');
+				} elseif ($_op instanceof Op\Expr\Closure && isset($name)) {
 					$this->functions[$name] = &$this->functions[$_op->func->name];
 				} elseif ($_op instanceof Op\Expr\Array_) {
-					$taint = new ScalarTaint(Taint::UNKNOWN);
-					foreach ($_op->keys as $index => $key) {
-						$arrayItem = $this->printer->printArrayFetch($op->var, $key ?: $index, $scope);
-						$scope = $scope->assignVariable($arrayItem, $this->transitionFunction->transfer($scope, $_op->values[$index]));
-						$taint = $taint->leastUpperBound($scope->getVariableTaint($arrayItem));
-					}
-
-					$_op->setAttribute(Taint::ATTR, $taint);
+					$scope = $this->processArrayCreation($_op, $scope, $op);
 				}
 			}
 		}
@@ -282,15 +328,41 @@ class NodeScopeResolver
 			// do nothing
 		} elseif ($op->expr instanceof Operand\Temporary && $scope->hasTemporaryTaint($op->expr)) {
 			$taint = $scope->getTemporaryTaint($op->expr);
+			$type = $taint->getType();
 		} else {
 			$taint = $this->transitionFunction->transfer($scope, $op->expr);
 		}
 
 		$op->setAttribute(Taint::ATTR, $taint);
-		$scope = $scope->assignVariable($name, $taint);
+
+		if (isset($name)) {
+			$scope = $scope->assignVariable($name, $taint);
+		}
+
+		if ($op->var instanceof Operand\Temporary) {
+			$scope = $scope->assignTemporary($op->var, $taint);
+
+			foreach ($op->var->ops as $_op) {
+				if ($_op instanceof Op\Expr\StaticPropertyFetch) {
+					$className = $this->printer->printOperand($_op->class, $scope);
+					$class = $this->broker->getClass($className);
+
+					if ($class->getStaticPropertiesTaint() === null) {
+						$class->setStaticPropertiesTaint($this->processClassStaticProperties($class, $scope));
+					}
+
+					$propertyName = $this->printer->printOperand($_op->name, $scope);
+					$class->updateStaticProperty($propertyName, $taint);
+				}
+			}
+		}
 
 		$scope = $scope->assignTemporary($op->expr, $taint);
 		$scope = $scope->assignTemporary($op->result, $taint);
+
+		if (isset($type)) {
+			$op->setAttribute('type', $type);
+		}
 //		taint($scope->getVariableTaints());
 
 		return $scope;
@@ -326,42 +398,24 @@ class NodeScopeResolver
 	}
 
 	/**
-	 * @param Op\Expr\FuncCall|Op\Expr\NsFuncCall|Op\Expr\MethodCall $call
+	 * @param Op\Expr\FuncCall|Op\Expr\NsFuncCall $call
 	 */
 	private function processFunctionCall(
 		Func $function,
 		Op\Expr $call,
 		Scope $scope,
-		callable $nodeCallback,
-		?BoundVariable $boundVariable = null
+		callable $nodeCallback
 	): Scope
 	{
 		$this->assertFuncCallArgument($call);
-		$bindArgs = [];
-
-		foreach ($function->params as $i => $param) {
-			/** @var Operand $arg */
-			$arg = $call->args[$i];
-
-			if ($arg instanceof Operand\Temporary) {
-				if ($arg->original instanceof Operand\Variable) {
-					if ($this->transitionFunction->isSuperGlobal($arg->original, $scope)) {
-						$bindArgs[$this->printer->print($param, $scope)] = $this->transitionFunction->transferSuperGlobal($arg->original);
-					} else {
-						$bindArgs[$this->printer->print($param, $scope)] = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
-					}
-				} else {
-					$bindArgs[$this->printer->print($param, $scope)] = $this->lookForFuncCalls($arg);
-				}
-			}
-		}
+		$bindArgs = $this->bindFuncCallArgs($function, $call, $scope);
 
 		$mapping = $this->findFuncCallMapping($function, $bindArgs);
 
 		if ($mapping !== null) {
 			$taint = $mapping->getTaint();
 		} else {
-			$scope = $scope->enterFuncCall($function, $call, $boundVariable);
+			$scope = $scope->enterFuncCall($function, $call);
 
 			foreach ($bindArgs as $argName => $argTaint) {
 				$scope = $scope->assignVariable($argName, $argTaint);
@@ -370,7 +424,49 @@ class NodeScopeResolver
 			$scope = $this->processBlock($function->cfg, $scope, $nodeCallback, null, false, true);
 
 			$funcCallResult = new FuncCallResult($this->transitionFunction);
-			$taint = $this->collectTaintsOfSubgraph($function->cfg, $funcCallResult);
+			$taint = $this->collectTaintsOfSubgraph($function->cfg, $funcCallResult, new BlockTaintStorage);
+
+			$mapping = new FuncCallMapping($function, $bindArgs, $funcCallResult, $funcCallResult->getTaint());
+			$this->funcCallStorage->put($call, $mapping);
+			$call->setAttribute('mapping', $mapping);
+		}
+
+		$call->setAttribute(Taint::ATTR, $taint);
+		$scope = $scope->assignTemporary($call->result, $taint);
+
+		return $scope;
+	}
+
+	/**
+	 * @param Op\Expr\MethodCall|Op\Expr\StaticCall $call
+	 */
+	private function processMethodCall(
+		Func $function,
+		Op\Expr $call,
+		Scope $scope,
+		callable $nodeCallback,
+		ClassReflection $classReflection,
+		BoundVariable $boundVariable
+	): Scope
+	{
+		$this->assertFuncCallArgument($call);
+		$bindArgs = $this->bindFuncCallArgs($function, $call, $scope);
+
+		$mapping = $this->findFuncCallMapping($function, $bindArgs);
+
+		if ($mapping !== null) {
+			$taint = $mapping->getTaint();
+		} else {
+			$scope = $scope->enterMethodCall($function, $call, $classReflection, $boundVariable);
+
+			foreach ($bindArgs as $argName => $argTaint) {
+				$scope = $scope->assignVariable($argName, $argTaint);
+			}
+
+			$scope = $this->processBlock($function->cfg, $scope, $nodeCallback, null, false, true);
+
+			$funcCallResult = new FuncCallResult($this->transitionFunction);
+			$taint = $this->collectTaintsOfSubgraph($function->cfg, $funcCallResult, new BlockTaintStorage);
 
 			$mapping = new FuncCallMapping($function, $bindArgs, $funcCallResult, $funcCallResult->getTaint());
 			$this->funcCallStorage->put($call, $mapping);
@@ -384,8 +480,8 @@ class NodeScopeResolver
 
 	private function assertFuncCallArgument($call): void
 	{
-		if (!$call instanceof Op\Expr\FuncCall && !$call instanceof Op\Expr\NsFuncCall && !$call instanceof Op\Expr\MethodCall) {
-			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall or NsFuncCall, %s', __METHOD__, get_class($call)));
+		if (!$call instanceof Op\Expr\FuncCall && !$call instanceof Op\Expr\NsFuncCall && !$call instanceof Op\Expr\MethodCall && !$call instanceof Op\Expr\StaticCall) {
+			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall, NsFuncCall, MethodCall or StaticCall, %s given.', __METHOD__, get_class($call)));
 		}
 	}
 
@@ -449,6 +545,36 @@ class NodeScopeResolver
 			}
 
 			return $scope;
+		} elseif ($op->expr instanceof Operand\Literal) {
+			$file = dirname($scope->getFile()) . '/' . $this->printer->printOperand($op->expr, $scope);
+
+			if (is_file($file)) {
+				if (!array_key_exists($file, $this->analysedFiles)) {
+					$this->addAnalysedFile($file);
+					$scriptScope = $this->processScript(
+						$this->parser->parseFile($file),
+						$scope->enterFile($file),
+						$nodeCallback
+					);
+
+					$scope = $scriptScope->leaveFile();
+
+					$taint = $scriptScope->getResultTaint();
+
+					$this->includedFilesResults[$file] = $taint;
+				} elseif (array_key_exists($file, $this->includedFilesResults)) {
+					$taint = $this->includedFilesResults[$file];
+				} else {
+					$taint = new ScalarTaint(Taint::UNKNOWN);
+				}
+
+				$threats = ['result'];
+
+				$op->setAttribute(Taint::ATTR, $taint);
+				$op->setAttribute(Taint::ATTR_THREATS, $threats);
+			}
+
+			return $scope;
 		}
 
 		dump(__FUNCTION__);
@@ -473,7 +599,9 @@ class NodeScopeResolver
 
 	private function unpackExpression($expr, Scope $scope): string
 	{
-		if ($expr instanceof BinaryOp\Concat) {
+		if ($expr instanceof Operand) {
+			return $this->printer->printOperand($expr, $scope);
+		} elseif ($expr instanceof BinaryOp\Concat) {
 			return $this->unpackExpression($expr->left, $scope) . $this->unpackExpression($expr->right, $scope);
 		} elseif ($expr instanceof Assign) {
 			return $this->unpackExpression($expr->expr, $scope);
@@ -483,8 +611,8 @@ class NodeScopeResolver
 			}
 
 			return $this->unpackExpression($expr->original, $scope);
-		} elseif ($expr instanceof Operand) {
-			return $this->printer->printOperand($expr, $scope);
+		} elseif ($expr instanceof Op\Expr\ConstFetch) {
+			return $this->unpackExpression($expr->name, $scope);
 		}
 
 		dump($expr);
@@ -512,6 +640,8 @@ class NodeScopeResolver
 			return $this->isExprResolvable($expr->expr);
 		} elseif ($expr instanceof BinaryOp\Concat) {
 			return $this->isExprResolvable($expr->left) && $this->isExprResolvable($expr->right);
+		} elseif ($expr instanceof Op\Expr\ConstFetch) {
+			return $this->isExprResolvable($expr->name);
 		}
 
 		return false;
@@ -555,12 +685,19 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function collectTaintsOfSubgraph(Block $cfg, FuncCallResult $funcCallResult, FuncCallPath $parent = null): Taint
+	private function collectTaintsOfSubgraph(Block $cfg, FuncCallResult $funcCallResult, BlockTaintStorage $blockTaintStorage, FuncCallPath $parent = null): Taint
 	{
 		$taint = new ScalarTaint(Taint::UNKNOWN);
+
+		if ($blockTaintStorage->hasBlock($cfg)) {
+			return $blockTaintStorage->get($cfg);
+		} else {
+			$blockTaintStorage->put($cfg, $taint);
+		}
+
 		foreach ($cfg->children as $op) {
 			if ($op instanceof Op\Terminal\Return_) {
-				$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR));
+				$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
 				$path = new FuncCallPath($parent, $op, FuncCallPath::EVAL_UNCONDITIONAL);
 				$path->setTaint($taint);
 				if ($parent === null) {
@@ -568,7 +705,8 @@ class NodeScopeResolver
 				}
 			} elseif ($op instanceof Op\Stmt\Jump) {
 				$path = new FuncCallPath($parent, $op, FuncCallPath::EVAL_UNCONDITIONAL);
-				$path->setTaint($this->collectTaintsOfSubgraph($op->target, $funcCallResult, $path));
+				$path->setTaint($this->collectTaintsOfSubgraph($op->target, $funcCallResult, $blockTaintStorage, $path));
+				$blockTaintStorage->put($cfg, $path->getTaint());
 				if ($parent === null) {
 					$funcCallResult->addPath($path);
 				}
@@ -576,22 +714,106 @@ class NodeScopeResolver
 				$taint = $taint->leastUpperBound($path->getTaint());
 			} elseif ($op instanceof Op\Stmt\JumpIf) {
 				$ifPath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_TRUE);
-				$ifPath->setTaint($this->collectTaintsOfSubgraph($op->if, $funcCallResult, $ifPath));
+				$ifPath->setTaint($this->collectTaintsOfSubgraph($op->if, $funcCallResult, $blockTaintStorage, $ifPath));
 				$taint = $taint->leastUpperBound($ifPath->getTaint());
 				if ($parent === null) {
 					$funcCallResult->addPath($ifPath);
 				}
 
 				$elsePath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_FALSE);
-				$elsePath->setTaint($this->collectTaintsOfSubgraph($op->else, $funcCallResult, $elsePath));
+				$elsePath->setTaint($this->collectTaintsOfSubgraph($op->else, $funcCallResult, $blockTaintStorage, $elsePath));
 				$taint = $taint->leastUpperBound($elsePath->getTaint());
 				if ($parent === null) {
 					$funcCallResult->addPath($elsePath);
 				}
+
+				$blockTaintStorage->put($cfg, $taint);
 			}
 		}
 
 		return $taint;
+	}
+
+	/**
+	 * @param Op\Expr\FuncCall|Op\Expr\NsFuncCall|Op\Expr\MethodCall|Op\Expr\StaticCall $call
+	 */
+	private function bindFuncCallArgs(Func $function, Op\Expr $call, Scope $scope): array
+	{
+		$bindArgs = [];
+
+		/** @var Op\Expr\Param $param */
+		foreach ($function->params as $i => $param) {
+			if ($param->defaultVar !== null && !array_key_exists($i, $call->args)) {
+				continue;
+			}
+
+			/** @var Operand $arg */
+			$arg = $call->args[$i];
+
+			if ($arg instanceof Operand\Temporary) {
+				if ($arg->original instanceof Operand\Variable) {
+					if ($this->transitionFunction->isSuperGlobal($arg->original, $scope)) {
+						$bindArgs[$this->printer->print($param, $scope)] = $this->transitionFunction->transferSuperGlobal($arg->original);
+					} else {
+						$bindArgs[$this->printer->print($param, $scope)] = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
+					}
+				} else {
+					$bindArgs[$this->printer->print($param, $scope)] = $this->lookForFuncCalls($arg);
+				}
+			}
+		}
+
+		return $bindArgs;
+	}
+
+	private function processClassStaticProperties(ClassReflection $classReflection, Scope $scope): VectorTaint
+	{
+		$staticTaints = new VectorTaint(new ObjectType($classReflection->getName()));
+		foreach ($classReflection->getProperties() as $property) {
+			if ($property->defaultVar === null) {
+				$staticTaints->addTaint($property->name->value, new ScalarTaint(Taint::UNKNOWN));
+			} elseif ($property->defaultVar instanceof Operand\Literal) {
+				$staticTaints->addTaint($property->name->value, $this->transitionFunction->transfer($scope, $property->defaultVar));
+			} elseif ($property->defaultVar instanceof Operand\Temporary) {
+				foreach ($property->defaultVar->ops as $op) {
+					if ($op instanceof Op\Expr\Array_) {
+						$scope = $this->processArrayCreation($op, $scope);
+					}
+				}
+
+				$staticTaints->addTaint($property->name->value, $property->defaultVar->ops[0]->getAttribute(Taint::ATTR));
+			} else {
+				dump($property);
+				die;
+			}
+		}
+
+		return $staticTaints;
+	}
+
+	private function processArrayCreation(Op\Expr\Array_ $op, Scope $scope, ?Assign $parentOp = null): Scope
+	{
+		$items = [];
+		$taint = new VectorTaint(new MixedType);
+
+		foreach ($op->keys as $index => $key) {
+			$itemTaint = $this->transitionFunction->transfer($scope, $op->values[$index]);
+
+			if ($parentOp) {
+				$arrayItem = $this->printer->printArrayFetch($parentOp->var, $key ?: $index, $scope);
+				$scope = $scope->assignVariable($arrayItem, $itemTaint);
+			}
+
+			$itemKey = $key ? $this->printer->printOperand($key, $scope) : $index;
+
+			$taint->addTaint($itemKey, $itemTaint);
+			$items[$itemKey] = $taint;
+		}
+
+		$op->setAttribute(Taint::ATTR, $taint);
+		$op->setAttribute('items', $items);
+
+		return $scope;
 	}
 
 }

@@ -64,8 +64,12 @@ class Broker
 	{
 		$className = $reflectionClass->getName();
 		if (!isset($this->classReflections[$className])) {
-			// parsed file is traversed and class passed via $broker->addClass()
-			$this->parser->parseFile($reflectionClass->getFileName());
+			if ($reflectionClass->isUserDefined()) {
+				// parsed file is traversed and class passed via $broker->addClass()
+				$this->parser->parseFile($reflectionClass->getFileName());
+			} else {
+				$this->classReflections[$className] = new ClassReflection($this, $reflectionClass->getName(), null);
+			}
 		}
 
 		return $this->classReflections[$className];

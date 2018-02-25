@@ -2,24 +2,28 @@
 
 namespace PHPWander;
 
+use PHPStan\Type\MixedType;
+use PHPStan\Type\Type;
+use PHPStan\Type\TypeCombinator;
+
 /**
  * @author Pavel Jurásek
  */
 class VectorTaint extends Taint
 {
 
-	/** @var string */
+	/** @var Type */
 	private $type;
 
 	/** @var Taint[] */
 	private $taints = [];
 
-	public function __construct(string $type)
+	public function __construct(Type $type)
 	{
 		$this->type = $type;
 	}
 
-	public function getType(): string
+	public function getType(): Type
 	{
 		return $this->type;
 	}
@@ -41,7 +45,7 @@ class VectorTaint extends Taint
 
 	public function getOverallTaint(): ScalarTaint
 	{
-		$taint = new ScalarTaint(Taint::UNKNOWN);
+		$taint = new ScalarTaint(Taint::UNKNOWN, new MixedType);
 
 		foreach ($this->taints as $scalarTaint) {
 			$taint = $taint->leastUpperBound($scalarTaint);
@@ -60,7 +64,7 @@ class VectorTaint extends Taint
 			throw new \InvalidArgumentException(sprintf('Unknow instance of taint: %s', get_class($other)));
 		}
 
-		return new ScalarTaint(max($this->getOverallTaint()->getTaint(), $taint));
+		return new ScalarTaint(max($this->getOverallTaint()->getTaint(), $taint), TypeCombinator::intersect($this->type, $other->getType()));
 	}
 
 	public function isTainted(): bool

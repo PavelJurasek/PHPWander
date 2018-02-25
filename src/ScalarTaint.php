@@ -2,6 +2,10 @@
 
 namespace PHPWander;
 
+use PHPStan\Type\MixedType;
+use PHPStan\Type\Type;
+use PHPStan\Type\TypeCombinator;
+
 /**
  * @author Pavel Jurásek
  */
@@ -11,14 +15,27 @@ class ScalarTaint extends Taint
 	/** @var int */
 	private $taint;
 
-	public function __construct(int $taint)
+	/** @var Type */
+	private $type;
+
+	public function __construct(int $taint, Type $type = null)
 	{
+		if ($type === null) {
+			$type = new MixedType;
+		}
+
 		$this->taint = $taint;
+		$this->type = $type;
 	}
 
 	public function getTaint(): int
 	{
 		return $this->taint;
+	}
+
+	public function getType(): Type
+	{
+		return $this->type;
 	}
 
 	public function leastUpperBound(Taint $other): ScalarTaint
@@ -32,7 +49,7 @@ class ScalarTaint extends Taint
 		}
 
 		/** @var ScalarTaint $other */
-		return new ScalarTaint(max($this->getTaint(), $taint));
+		return new ScalarTaint(max($this->getTaint(), $taint), TypeCombinator::union($this->type, $other->getType()));
 	}
 
 	public function isTainted(): bool

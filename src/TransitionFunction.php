@@ -5,6 +5,14 @@ namespace PHPWander;
 use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Literal;
+use PHPStan\Type\FalseBooleanType;
+use PHPStan\Type\FloatType;
+use PHPStan\Type\IntegerType;
+use PHPStan\Type\MixedType;
+use PHPStan\Type\StringType;
+use PHPStan\Type\TrueBooleanType;
+use PHPStan\Type\TrueOrFalseBooleanType;
+use PHPStan\Type\Type;
 use PHPWander\Broker\Broker;
 use PHPWander\Analyser\Scope;
 use PHPWander\Printer\Printer;
@@ -52,7 +60,7 @@ class TransitionFunction
 	public function transfer(Scope $scope, Operand $node): Taint
 	{
 		if ($node instanceof Literal) {
-			return new ScalarTaint(Taint::UNTAINTED);
+			return new ScalarTaint(Taint::UNTAINTED, $this->resolveType($node->value));
 		} elseif ($node instanceof Operand\Temporary) {
 			return $this->transferTemporary($scope, $node);
 		} elseif ($node instanceof Operand\Variable) {
@@ -71,8 +79,16 @@ class TransitionFunction
 
 	private function transferTemporary(Scope $scope, Operand\Temporary $node): Taint
 	{
+		if ($scope->hasTemporaryTaint($node)) {
+			return $scope->getTemporaryTaint($node);
+		}
+
 		if ($node->original !== null) {
 			return $this->transfer($scope, $node->original);
+		}
+
+		if (count($node->ops) === 1) {
+			return $this->transferOp($scope, $node->ops[0]);
 		}
 
 		$taint = new ScalarTaint(Taint::UNKNOWN);
@@ -86,7 +102,7 @@ class TransitionFunction
 	public function transferOp(Scope $scope, Op $op, bool $omitSavedAttribute = false): Taint
 	{
 		if ($op->hasAttribute(Taint::ATTR) && !$omitSavedAttribute) {
-			return $op->getAttribute(Taint::ATTR) ?: new ScalarTaint(Taint::UNKNOWN);
+			return $op->getAttribute(Taint::ATTR) ?: new ScalarTaint(Taint::UNKNOWN, $op->getAttribute('type'));
 		}
 
 		if ($op instanceof Op\Terminal\Return_ && $op->expr !== null) {
@@ -102,7 +118,7 @@ class TransitionFunction
 					$type = 'string';
 					$op->setAttribute(Taint::ATTR, $taint);
 					$op->setAttribute(Taint::ATTR_TAINT, $taints);
-					$op->setAttribute('type', $type);
+					$op->setAttribute(Taint::ATTR_TYPE, $type);
 				}
 
 				$source = $this->sourceFunctions->getSource($funcName);
@@ -159,6 +175,14 @@ class TransitionFunction
 
 		} elseif ($op instanceof Op\Expr\BinaryOp\Plus) {
 			return new ScalarTaint(Taint::UNTAINTED);
+		} elseif ($op instanceof Op\Phi) {
+			$taint = $this->transfer($scope, $op->vars[0]);
+
+			for ($i = 1; $i < count($op->vars); $i++) {
+				$taint = $taint->leastUpperBound($this->transfer($scope, $op->vars[$i]));
+			}
+
+			return $taint;
 		}
 
 		return new ScalarTaint(Taint::UNKNOWN);
@@ -243,6 +267,21 @@ class TransitionFunction
 		}
 
 		return new ScalarTaint(Taint::TAINTED);
+	}
+
+	private function resolveType($value): Type
+	{
+		if (is_bool($value)) {
+			return $value ? new TrueBooleanType : new FalseBooleanType;
+		} elseif (is_integer($value)) {
+			return new IntegerType;
+		} elseif (is_double($value)) {
+			return new FloatType;
+		} elseif (is_string($value)) {
+			return new StringType;
+		}
+
+		return new MixedType;
 	}
 
 }

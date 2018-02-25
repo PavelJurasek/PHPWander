@@ -10,6 +10,8 @@ use PHPCfg\Op\Expr\NsFuncCall;
 use PHPCfg\Op\Stmt;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Temporary;
+use PHPStan\ShouldNotHappenException;
+use PHPWander\Reflection\ClassReflection;
 use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 
@@ -46,14 +48,17 @@ class Scope
 	/** @var Func|null */
 	private $func;
 
-	/** @var FuncCall|NsFuncCall|Expr\MethodCall|null */
+	/** @var FuncCall|NsFuncCall|Expr\MethodCall|Expr\StaticCall|null */
 	private $funcCall;
+
+	/** @var ClassReflection|null */
+	private $classReflection;
 
 	/** @var BoundVariable|null */
 	private $boundVariable;
 
 	/**
-	 * @param FuncCall|NsFuncCall|Expr\MethodCall|null $funcCall
+	 * @param FuncCall|NsFuncCall|Expr\MethodCall|Expr\StaticCall|null $funcCall
 	 */
 	public function __construct(
 		string $file,
@@ -66,6 +71,7 @@ class Scope
 		bool $negated = false,
 		Func $func = null,
 		Expr $funcCall = null,
+		ClassReflection $classReflection = null,
 		BoundVariable $boundVariable = null
 	) {
 		if ($funcCall !== null) {
@@ -84,6 +90,7 @@ class Scope
 		$this->negated = $negated;
 		$this->func = $func;
 		$this->funcCall = $funcCall;
+		$this->classReflection = $classReflection;
 		$this->boundVariable = $boundVariable;
 	}
 
@@ -110,6 +117,7 @@ class Scope
 			$this->negated,
 			$this->func,
 			$this->funcCall,
+			$this->classReflection,
 			$this->boundVariable
 		);
 	}
@@ -127,6 +135,7 @@ class Scope
 			$this->negated,
 			$this->func,
 			$this->funcCall,
+			$this->classReflection,
 			$this->boundVariable
 		);
 	}
@@ -152,6 +161,7 @@ class Scope
 			$negated,
 			$this->func,
 			$this->funcCall,
+			$this->classReflection,
 			$this->boundVariable
 		);
 	}
@@ -275,6 +285,7 @@ class Scope
 			$this->negated,
 			$this->func,
 			$this->funcCall,
+			$this->classReflection,
 			$this->boundVariable
 		);
 	}
@@ -298,6 +309,7 @@ class Scope
 			$this->negated,
 			$this->func,
 			$this->funcCall,
+			$this->classReflection,
 			$this->boundVariable
 		);
 	}
@@ -305,10 +317,16 @@ class Scope
 	public function hasTemporaryTaint(Operand $temporary): bool
 	{
 		if (!$temporary instanceof Temporary) {
-			return false;
+			throw new ShouldNotHappenException;
 		}
 
-		return array_key_exists($this->hash($temporary), $this->temporaries);
+		if (array_key_exists($this->hash($temporary), $this->temporaries)) {
+			return true;
+		} elseif ($this->parentScope) {
+			return $this->parentScope->hasTemporaryTaint($temporary);
+		}
+
+		return false;
 	}
 
 	public function assignTemporary(Operand $temporary, Taint $taint = null): self
@@ -335,6 +353,7 @@ class Scope
 			$this->negated,
 			$this->func,
 			$this->funcCall,
+			$this->classReflection,
 			$this->boundVariable
 		);
 	}
@@ -345,7 +364,13 @@ class Scope
 			throw new \InvalidArgumentException('$temporary must be instance of Temporary');
 		}
 
-		return $this->temporaries[$this->hash($temporary)];
+		if (array_key_exists($this->hash($temporary), $this->temporaries)) {
+			return $this->temporaries[$this->hash($temporary)];
+		} elseif ($this->parentScope) {
+			return $this->parentScope->getTemporaryTaint($temporary);
+		}
+
+		throw new ShouldNotHappenException;
 	}
 
 	public function getTemporaryTaints(): array
@@ -369,9 +394,40 @@ class Scope
 	}
 
 	/**
-	 * @param FuncCall|NsFuncCall|Expr\MethodCall $call
+	 * @param FuncCall|NsFuncCall $call
 	 */
-	public function enterFuncCall(Func $func, $call, ?BoundVariable $boundVariable = null): self
+	public function enterFuncCall(Func $func, $call): self
+	{
+		$this->assertFuncCallArgument($call);
+
+		return new self(
+			$this->file,
+			$this->getFile(),
+			$this,
+			$this->variableTaints,
+			$this->getTemporaryTaints(),
+			$this->blocks,
+			$this->statementStack,
+			$this->negated,
+			$func,
+			$call
+		);
+	}
+
+	public function isInFuncCall(): bool
+	{
+		return $this->funcCall !== null;
+	}
+
+	public function leaveFuncCall(): self
+	{
+		return $this->parentScope;
+	}
+
+	/**
+	 * @param Expr\MethodCall|Expr\StaticCall $call
+	 */
+	public function enterMethodCall(Func $func, $call, ClassReflection $classReflection, BoundVariable $boundVariable): self
 	{
 		$this->assertFuncCallArgument($call);
 
@@ -386,18 +442,24 @@ class Scope
 			$this->negated,
 			$func,
 			$call,
+			$classReflection,
 			$boundVariable
 		);
 	}
 
-	public function isInFuncCall(): bool
+	public function isInMethodCall(): bool
 	{
-		return $this->funcCall !== null;
+		return $this->isInFuncCall();
 	}
 
-	public function leaveFuncCall(): self
+	public function leaveMethodCall(): self
 	{
 		return $this->parentScope;
+	}
+
+	public function getClass(): ?ClassReflection
+	{
+		return $this->classReflection;
 	}
 
 	public function getBoundVariable(): ?BoundVariable
@@ -414,8 +476,8 @@ class Scope
 
 	private function assertFuncCallArgument($call): void
 	{
-		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall && !$call instanceof Expr\MethodCall) {
-			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall or NsFuncCall, %s', __METHOD__, get_class($call)));
+		if (!$call instanceof FuncCall && !$call instanceof NsFuncCall && !$call instanceof Expr\MethodCall && !$call instanceof Expr\StaticCall) {
+			throw new \InvalidArgumentException(sprintf('%s: $call must be instance of FuncCall, NsFuncCall, MethodCall or StaticCall, %s', __METHOD__, get_class($call)));
 		}
 	}
 

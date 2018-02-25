@@ -2,6 +2,8 @@
 
 namespace PHPWander;
 
+use PHPStan\Type\Type;
+
 /**
  * @author Pavel Jurásek
  */
@@ -9,6 +11,7 @@ abstract class Taint
 {
 
 	public const ATTR = 'taint-result';
+	public const ATTR_TYPE = 'taint-type';
 	public const ATTR_SANITIZE = 'sanitize';
 	public const ATTR_SOURCE = 'source';
 	public const ATTR_SINK = 'sink';
@@ -23,5 +26,7 @@ abstract class Taint
 	abstract public function leastUpperBound(Taint $other): ScalarTaint;
 
 	abstract public function isTainted(): bool;
+
+	abstract public function getType(): Type;
 
 }
