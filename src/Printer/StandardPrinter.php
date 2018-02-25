@@ -74,6 +74,8 @@ class StandardPrinter implements Printer
 			return sprintf('empty(%s)', $this->print($node->expr, $scope));
 		} elseif ($node instanceof Op\Phi) {
 			return sprintf('phi(%s)', $this->printList($node->vars, $scope));
+		} elseif ($node instanceof Op\Expr\StaticPropertyFetch) {
+			return sprintf('%s::$%s', $this->print($node->class, $scope), $this->print($node->name, $scope));
 		}
 
 		dump(__METHOD__);

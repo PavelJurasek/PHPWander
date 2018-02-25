@@ -359,6 +359,14 @@ class StandardPrinterTest extends Tester\TestCase
 				},
 				$scope,
 				'phi($_GET[\'x\'], 3)'
+			],
+			[
+				new Op\Expr\StaticPropertyFetch(
+					new Literal('StaticClass'),
+					new Literal('var')
+				),
+				$scope,
+				'StaticClass::$var',
 			]
 		];
 	}
