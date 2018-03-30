@@ -102,6 +102,8 @@ class StandardDescriber implements Describer
 			return sprintf('static call %s', $this->printer->printOp($node, $scope));
 		} elseif ($node instanceof Op\Expr\StaticPropertyFetch) {
 			return sprintf('static property %s', $this->printer->printOp($node, $scope));
+		} elseif ($node instanceof Op\Expr\Array_) {
+			return $this->printer->printOp($node, $scope);
 		}
 
 		if (!isset($str)) {

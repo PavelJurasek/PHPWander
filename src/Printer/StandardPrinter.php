@@ -12,10 +12,10 @@ use PHPWander\Analyser\Scope;
 class StandardPrinter implements Printer
 {
 
-	public function print($node, Scope $scope): string
+	public function print($node, Scope $scope, bool $quote = false): string
 	{
 		if ($node instanceof Operand) {
-			return $this->printOperand($node, $scope);
+			return $this->printOperand($node, $scope, $quote);
 		}
 
 		return $this->printOp($node, $scope);
@@ -76,6 +76,8 @@ class StandardPrinter implements Printer
 			return sprintf('phi(%s)', $this->printList($node->vars, $scope));
 		} elseif ($node instanceof Op\Expr\StaticPropertyFetch) {
 			return sprintf('%s::$%s', $this->print($node->class, $scope), $this->print($node->name, $scope));
+		} elseif ($node instanceof Op\Expr\Array_) {
+			return sprintf('[%s]', $this->printArray($node->keys, $node->values, $scope));
 		}
 
 		dump(__METHOD__);
@@ -178,6 +180,18 @@ class StandardPrinter implements Printer
 			}
 			return $this->print($arg, $scope);
 		}, $args));
+	}
+
+	private function printArray(array $keys, array $values, Scope $scope): string
+	{
+		$string = '';
+		$size = count($keys);
+
+		for ($i = 0; $i < $size; $i++) {
+			$string .= sprintf('%s%s%s', $keys[$i] === null ? '' : sprintf('%s => ', $this->printOperand($keys[$i], $scope, true)), $this->print($values[$i], $scope, true), $i < $size - 1 ? ', ' : '');
+		}
+
+		return $string;
 	}
 
 }

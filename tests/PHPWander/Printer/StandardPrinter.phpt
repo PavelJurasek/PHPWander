@@ -367,6 +367,24 @@ class StandardPrinterTest extends Tester\TestCase
 				),
 				$scope,
 				'StaticClass::$var',
+			],
+			[
+				new Op\Expr\Array_(
+					[
+						0 => null,
+						1 => new Literal('b'),
+					],
+					[
+						new Literal('val'),
+						new ArrayDimFetch(
+							new Variable(new Literal('_GET')),
+							new Literal('dim')
+						),
+					],
+					[]
+				),
+				$scope,
+				'[\'val\', \'b\' => $_GET[\'dim\']]'
 			]
 		];
 	}
