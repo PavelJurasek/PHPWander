@@ -286,7 +286,12 @@ class NodeScopeResolver
 
 		} elseif ($op instanceof Op\Expr\StaticPropertyFetch) {
 			$className = $this->printer->printOperand($op->class, $scope);
-			$class = $this->broker->getClass($className);
+
+			if ($scope->isInMethodCall() && $scope->getBoundVariable()->getVar() === $className) {
+				$class = $scope->getClass();
+			} else {
+				$class = $this->broker->getClass($className);
+			}
 
 			if ($class->getStaticPropertiesTaint() === null) {
 				$class->setStaticPropertiesTaint($this->processClassStaticProperties($class, $scope));
