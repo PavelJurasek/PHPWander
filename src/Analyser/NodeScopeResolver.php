@@ -327,6 +327,8 @@ class NodeScopeResolver
 					$this->functions[$name] = &$this->functions[$_op->func->name];
 				} elseif ($_op instanceof Op\Expr\Array_) {
 					$scope = $this->processArrayCreation($_op, $scope, $op);
+				} elseif ($_op instanceof Op\Iterator\Value) {
+					$taint = $_op->getAttribute(Taint::ATTR);
 				}
 			}
 		}
