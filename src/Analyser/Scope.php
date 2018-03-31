@@ -173,7 +173,6 @@ class Scope
 
 	public function getParentBlock(): ?Block
 	{
-//		return $this->blocks[count($this->blocks) - 2];
 		return $this->parentScope ? $this->parentScope->getCurrentBlock() : null;
 	}
 
@@ -214,23 +213,6 @@ class Scope
 	{
 		return $this->negated;
 	}
-
-//	public function enterStatement(Stmt $statement): self
-//	{
-//		$statements = $this->statementStack;
-//		array_push($statements, $statement);
-//
-//		return new self(
-//			$this->transitionFunction,
-//			$this->file,
-//			$this->getFile(),
-//			$this,
-//			$this->variableTaints,
-//			$this->getTemporaryTaints(),
-//			$this->blocks,
-//			$statements
-//		);
-//	}
 
 	/**
 	 * @return Taint[]
