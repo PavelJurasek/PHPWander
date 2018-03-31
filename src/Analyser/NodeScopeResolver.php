@@ -358,6 +358,15 @@ class NodeScopeResolver
 
 					$propertyName = $this->printer->printOperand($_op->name, $scope);
 					$class->updateStaticProperty($propertyName, $taint);
+				} elseif ($_op instanceof ArrayDimFetch) {
+					/** @var Op\Expr\PropertyFetch $property */
+					$property = $_op->getAttribute('property');
+
+					if ($property !== null) {
+						$propertyName = $this->printer->print($property, $scope);
+
+						$scope->assignVariable($propertyName, $taint);
+					}
 				}
 			}
 		}
@@ -391,6 +400,9 @@ class NodeScopeResolver
 			} elseif ($op->var->ops) {
 				$taint = new ScalarTaint(Taint::UNKNOWN);
 				foreach ($op->var->ops as $_op) {
+					if ($_op instanceof Op\Expr\PropertyFetch || $_op instanceof Op\Expr\StaticPropertyFetch) {
+						$op->setAttribute('property', $_op);
+					}
 					$taint = $taint->leastUpperBound($this->transitionFunction->transferOp($scope, $_op));
 				}
 
