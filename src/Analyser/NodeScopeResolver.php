@@ -303,6 +303,8 @@ class NodeScopeResolver
 			$taints = $staticProperties->getTaint($propertyName);
 
 			$op->setAttribute(Taint::ATTR, $taints);
+		} elseif ($op instanceof Op\Expr\Array_) {
+			$scope = $this->processArrayCreation($op, $scope, null);
 		}
 
 		$nodeCallback($op, $scope);
@@ -810,6 +812,10 @@ class NodeScopeResolver
 
 	private function processArrayCreation(Op\Expr\Array_ $op, Scope $scope, ?Assign $parentOp = null): Scope
 	{
+		if ($op->getAttribute(Taint::ATTR) !== null) {
+			return $scope;
+		}
+
 		$items = [];
 		$taint = new VectorTaint(new MixedType);
 
@@ -824,7 +830,7 @@ class NodeScopeResolver
 			$itemKey = $key ? $this->printer->printOperand($key, $scope) : $index;
 
 			$taint->addTaint($itemKey, $itemTaint);
-			$items[$itemKey] = $taint;
+			$items[$itemKey] = $itemTaint;
 		}
 
 		$op->setAttribute(Taint::ATTR, $taint);
