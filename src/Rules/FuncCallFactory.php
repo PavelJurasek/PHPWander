@@ -36,7 +36,13 @@ class FuncCallFactory
 	public function create(Registry $registry): void
 	{
 		foreach ($this->sinkFunctions->getAll() as $functionName => $params) {
-			$registry->addRule(new FuncCall($this->describer, $this->blockScopeStorage, $this->funcCallStorage, $functionName, $params[0], $params[1]));
+			if (!preg_match('~(->|::)~', $functionName, $m)) {
+				$registry->addRule(new FuncCall($this->describer, $this->blockScopeStorage, $this->funcCallStorage, $functionName, $params[0], $params[1]));
+			} elseif ($m[1] === '->') {
+				$registry->addRule(new MethodCall($this->describer, $this->blockScopeStorage, $this->funcCallStorage, $functionName, $params[0], $params[1]));
+			} else {
+				$registry->addRule(new StaticCall($this->describer, $this->blockScopeStorage, $this->funcCallStorage, $functionName, $params[0], $params[1]));
+			}
 		}
 	}
 

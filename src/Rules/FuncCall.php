@@ -27,11 +27,11 @@ class FuncCall extends AbstractRule implements Rule
 	/** @var array */
 	private $sanitizers;
 
-	public function __construct(Describer $describer, BlockScopeStorage $blockScopeStorage, FuncCallStorage $funcCallStorage, string $functionName, array $args, array $sanitizers)
+	public function __construct(Describer $describer, BlockScopeStorage $blockScopeStorage, FuncCallStorage $funcCallStorage, string $name, array $args, array $sanitizers)
 	{
 		parent::__construct($describer, $blockScopeStorage, $funcCallStorage);
 
-		$this->functionName = $functionName;
+		$this->functionName = $name;
 		$this->args = $args;
 		$this->sanitizers = $sanitizers;
 	}
@@ -50,12 +50,21 @@ class FuncCall extends AbstractRule implements Rule
 	 */
 	public function processNode(Op $node, Scope $scope): array
 	{
-		$name = $node->name instanceof Literal ? $node->name->value : $node;
+		$name = $node->name instanceof Literal ? $node->name->value : get_class($node);
 
 		if ($name !== $this->functionName) {
 			return [];
 		}
 
+		return $this->checkTaints($node, $scope, $name, 'function');
+	}
+
+	/**
+	 * @param Op\Expr\FuncCall|Op\Expr\MethodCall|Op\Expr\StaticCall $node
+	 * @return string[]
+	 */
+	protected function checkTaints(Op $node, Scope $scope, string $name, ?string $description = null): array
+	{
 		if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && $node->getAttribute(Taint::ATTR_SINK) !== null) {
 			return [
 				sprintf('Sensitive sink %s is tainted.', $name),
@@ -68,7 +77,7 @@ class FuncCall extends AbstractRule implements Rule
 
 				if ($this->isArgumentTainted($arg, $scope)) {
 					return [
-						sprintf('%s argument of sensitive function call %s is tainted.', $this->formatNumber($argNumber), $name),
+						sprintf('%s argument of sensitive%s call %s is tainted.', $this->formatNumber($argNumber), $description ? " $description" : '', $name),
 					];
 				}
 			}
@@ -77,7 +86,7 @@ class FuncCall extends AbstractRule implements Rule
 		return [];
 	}
 
-	private function isArgumentTainted(Operand $arg, Scope $scope): bool
+	protected function isArgumentTainted(Operand $arg, Scope $scope): bool
 	{
 		if ($arg instanceof Literal) {
 			return false;
@@ -103,7 +112,7 @@ class FuncCall extends AbstractRule implements Rule
 		return false;
 	}
 
-	private function formatNumber(int $argNumber): string
+	protected function formatNumber(int $argNumber): string
 	{
 		return ((string) $argNumber) . '.';
 	}
