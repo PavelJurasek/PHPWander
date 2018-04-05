@@ -14,7 +14,6 @@ services:
 	lexer: PhpParser\Lexer
 	parser: PhpParser\Parser\Php7
 	neon: Nette\Neon\Neon
-	funcCallFactory: PHPWander\Rules\FuncCallFactory(@sinkFunctions)
 
 	transition:
 		class: PHPWander\TransitionFunction
