@@ -114,4 +114,9 @@ class ClassReflection
 		$this->staticPropertiesTaint->addTaint($property, $taint);
 	}
 
+	public function getFile(): string
+	{
+		return $this->nativeReflection->getFileName();
+	}
+
 }
