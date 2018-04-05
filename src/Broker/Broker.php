@@ -45,6 +45,7 @@ class Broker
 	{
 		if (!$this->hasClass($className)) {
 			throw new ClassNotFoundException($className);
+//			return $this->classReflections[$className] = new ClassReflection($this, new ReflectionClass(\stdClass::class), null);
 		}
 
 		if (!isset($this->classReflections[$className])) {
@@ -68,7 +69,7 @@ class Broker
 				// parsed file is traversed and class passed via $broker->addClass()
 				$this->parser->parseFile($reflectionClass->getFileName());
 			} else {
-				$this->classReflections[$className] = new ClassReflection($this, $reflectionClass->getName(), null);
+				$this->classReflections[$className] = new ClassReflection($this, $reflectionClass->getName(), $reflectionClass->getFileName() ?: 'native', null);
 			}
 		}
 

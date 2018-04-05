@@ -21,6 +21,9 @@ class ClassReflection
 	/** @var string */
 	private $displayName;
 
+	/** @var string */
+	private $file;
+
 	/** @var Class_|null */
 	private $classDefinition;
 
@@ -36,10 +39,12 @@ class ClassReflection
 	public function __construct(
 		Broker $broker,
 		string $displayName,
+		string $file,
 		?Class_ $classDefinition
 	) {
 		$this->broker = $broker;
 		$this->displayName = $displayName;
+		$this->file = $file;
 		$this->classDefinition = $classDefinition;
 
 		if ($classDefinition) {
@@ -114,9 +119,14 @@ class ClassReflection
 		$this->staticPropertiesTaint->addTaint($property, $taint);
 	}
 
+	public function isUserDefined(): bool
+	{
+		return $this->file !== 'native';
+	}
+
 	public function getFile(): string
 	{
-		return $this->nativeReflection->getFileName();
+		return $this->file;
 	}
 
 }
