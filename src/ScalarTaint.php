@@ -44,6 +44,8 @@ class ScalarTaint extends Taint
 			return $other->leastUpperBound($this);
 		} elseif ($other instanceof ScalarTaint) {
 			$taint = $other->getTaint();
+		} elseif ($other instanceof PhiTaint) {
+			$taint = $other->getOverallTaint()->getTaint();
 		} else {
 			throw new \InvalidArgumentException(sprintf('Unknow instance of taint: %s', get_class($other)));
 		}

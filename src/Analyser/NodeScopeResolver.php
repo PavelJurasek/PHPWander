@@ -3,6 +3,7 @@
 namespace PHPWander\Analyser;
 
 use Nette\InvalidStateException;
+use Nette\NotImplementedException;
 use PHPCfg\Block;
 use PHPCfg\Func;
 use PHPCfg\Op;
@@ -11,11 +12,15 @@ use PHPCfg\Script;
 use PHPCfg\Op\Expr\ArrayDimFetch;
 use PHPCfg\Op\Expr\Assign;
 use PHPCfg\Op\Expr\BinaryOp;
+use PHPStan\ShouldNotHappenException;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\TrueOrFalseBooleanType;
+use PHPStan\Type\TypeWithClassName;
+use PHPStan\Type\UnionType;
 use PHPWander\Broker\Broker;
 use PHPStan\File\FileHelper;
+use PHPWander\PhiTaint;
 use PHPWander\Printer\Printer;
 use PHPWander\Reflection\ClassReflection;
 use PHPWander\ScalarTaint;
@@ -242,21 +247,44 @@ class NodeScopeResolver
 			if ($scope->isInMethodCall() && $scope->getBoundVariable()->getVar() === $var) {
 				$taint = $scope->getBoundVariable()->getTaint();
 				$class = $scope->getClass();
+
 			} elseif ($op->var instanceof Operand\Temporary && $op->var->ops[0] instanceof Op\Expr\StaticCall) {
 				$className = $op->var->ops[0]->class->value;
 				$taint = new VectorTaint(new ObjectType($className));
 				$class = $this->broker->getClass($className);
+
 			} else {
 				/** @var VectorTaint $taint */
 				$taint = $scope->getVariableTaint($var);
 				/** @var ObjectType $type */
 				$type = $taint->getType();
-				$class = $this->broker->getClass($type->getClassName());
+
+				if ($type instanceof UnionType) {
+					$classes = $type->getReferencedClasses();
+
+					if (count($classes) === 0) {
+						throw new ShouldNotHappenException;
+					} elseif (count($classes) > 1) {
+						throw new NotImplementedException;
+					}
+
+					$className = reset($classes);
+				} elseif ($type instanceof TypeWithClassName) {
+					$className = $type->getClassName();
+				} else {
+					// @todo add warning to results
+//					throw new ShouldNotHappenException;
+					return $scope;
+				}
+
+				$class = $this->broker->getClass($className);
 			}
 
-			$method = $class->getMethod($this->printer->printOperand($op->name, $scope));
+			if ($class->isUserDefined()) {
+				$method = $class->getMethod($this->printer->printOperand($op->name, $scope));
 
-			$this->processMethodCall($method->func, $op, $scope, $nodeCallback, $class, new BoundVariable('$this', $taint));
+				$this->processMethodCall($method->func, $op, $scope, $nodeCallback, $class, new BoundVariable('$this', $taint));
+			}
 
 		} elseif ($op instanceof Op\Iterator\Reset) {
 			$name = $this->printer->printOperand($op->var, $scope);
@@ -708,7 +736,7 @@ class NodeScopeResolver
 
 	private function collectTaintsOfSubgraph(Block $cfg, FuncCallResult $funcCallResult, BlockTaintStorage $blockTaintStorage, FuncCallPath $parent = null): Taint
 	{
-		$taint = new ScalarTaint(Taint::UNKNOWN);
+		$taint = new PhiTaint;
 
 		if ($blockTaintStorage->hasBlock($cfg)) {
 			return $blockTaintStorage->get($cfg);
@@ -718,7 +746,7 @@ class NodeScopeResolver
 
 		foreach ($cfg->children as $op) {
 			if ($op instanceof Op\Terminal\Return_) {
-				$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
+				$taint->addTaint($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
 				$path = new FuncCallPath($parent, $op, FuncCallPath::EVAL_UNCONDITIONAL);
 				$path->setTaint($taint);
 				if ($parent === null) {
@@ -732,18 +760,18 @@ class NodeScopeResolver
 					$funcCallResult->addPath($path);
 				}
 
-				$taint = $taint->leastUpperBound($path->getTaint());
+				$taint->addTaint($path->getTaint());
 			} elseif ($op instanceof Op\Stmt\JumpIf) {
 				$ifPath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_TRUE);
 				$ifPath->setTaint($this->collectTaintsOfSubgraph($op->if, $funcCallResult, $blockTaintStorage, $ifPath));
-				$taint = $taint->leastUpperBound($ifPath->getTaint());
+				$taint->addTaint($ifPath->getTaint());
 				if ($parent === null) {
 					$funcCallResult->addPath($ifPath);
 				}
 
 				$elsePath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_FALSE);
 				$elsePath->setTaint($this->collectTaintsOfSubgraph($op->else, $funcCallResult, $blockTaintStorage, $elsePath));
-				$taint = $taint->leastUpperBound($elsePath->getTaint());
+				$taint->addTaint($elsePath->getTaint());
 				if ($parent === null) {
 					$funcCallResult->addPath($elsePath);
 				}

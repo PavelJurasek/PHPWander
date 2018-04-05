@@ -2,6 +2,7 @@
 
 namespace PHPWander\Analyser;
 
+use PHPWander\PhiTaint;
 use PHPWander\ScalarTaint;
 use PHPWander\Taint;
 use PHPWander\TransitionFunction;
@@ -26,14 +27,14 @@ class FuncCallResult
 
 	public function __construct(TransitionFunction $transitionFunction)
 	{
-		$this->taint = new ScalarTaint(Taint::UNKNOWN);
+		$this->taint = new PhiTaint;
 		$this->transitionFunction = $transitionFunction;
 	}
 
 	public function addPath(FuncCallPath $callPath)
 	{
 		$this->callPaths[] = $callPath;
-		$this->taint = $this->taint->leastUpperBound($callPath->getTaint());
+		$this->taint->addTaint($callPath->getTaint());
 
 		if ($callPath->getTaint()->isTainted()) {
 			$this->taintingCallPaths[] = $callPath;

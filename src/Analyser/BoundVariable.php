@@ -2,6 +2,8 @@
 
 namespace PHPWander\Analyser;
 
+use PHPWander\PhiTaint;
+use PHPWander\Taint;
 use PHPWander\VectorTaint;
 
 /**
@@ -16,9 +18,13 @@ class BoundVariable
 	/** @var VectorTaint */
 	private $taint;
 
-	public function __construct(string $var, VectorTaint $taint)
+	public function __construct(string $var, Taint $taint)
 	{
 		$this->var = $var;
+
+		if ($taint instanceof PhiTaint) {
+			$taint = $taint->getSingleVectorTaint();
+		}
 		$this->taint = $taint;
 	}
 

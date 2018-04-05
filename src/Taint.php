@@ -29,4 +29,9 @@ abstract class Taint
 
 	abstract public function getType(): Type;
 
+	protected function hash($object): string
+	{
+		return substr(md5(spl_object_hash($object)), 0, 4);
+	}
+
 }
