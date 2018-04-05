@@ -93,7 +93,7 @@ class StandardDescriber implements Describer
 		} elseif ($node instanceof Op\Terminal\Return_) {
 			$str = sprintf('return %s', $this->describeOperand($node->expr, $scope));
 		} elseif ($node instanceof Op\Expr\Param) {
-			return '';
+			return sprintf('parameter $%s', $this->printer->printOperand($node->name, $scope));
 		} elseif ($node instanceof Op\Iterator\Value) {
 			return sprintf('value of %s', $this->printer->printOperand($node->var, $scope));
 		} elseif ($node instanceof Op\Expr\MethodCall) {
