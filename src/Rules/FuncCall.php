@@ -80,6 +80,14 @@ class FuncCall extends AbstractRule implements Rule
 						sprintf('%s argument of sensitive%s call %s is tainted.', $this->formatNumber($argNumber), $description ? " $description" : '', $name),
 					];
 				}
+			} elseif ($argNumber === 0) {
+				foreach ($node->args as $arg) {
+					if ($this->isArgumentTainted($arg, $scope)) {
+						return [
+							sprintf('Output of sensitive%s call %s is tainted.', $description ? " $description" : '', $name),
+						];
+					}
+				}
 			}
 		}
 
