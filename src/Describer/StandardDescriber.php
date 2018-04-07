@@ -104,6 +104,10 @@ class StandardDescriber implements Describer
 			return sprintf('static property %s', $this->printer->printOp($node, $scope));
 		} elseif ($node instanceof Op\Expr\Array_) {
 			return $this->printer->printOp($node, $scope);
+		} elseif ($node instanceof Op\Expr\ConcatList) {
+			return implode('', array_map(function ($item) use ($scope) {
+				return $this->printer->print($item, $scope);
+			}, $node->list));
 		}
 
 		if (!isset($str)) {
