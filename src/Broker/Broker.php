@@ -2,6 +2,8 @@
 
 namespace PHPWander\Broker;
 
+use PHPStan\Broker\ClassAutoloadingException;
+use PHPStan\Broker\ClassNotFoundException;
 use PHPWander\Parser\Parser;
 use PHPWander\Reflection\ClassReflection;
 use ReflectionClass;
@@ -83,7 +85,7 @@ class Broker
 		}
 		spl_autoload_register($autoloader = function (string $autoloadedClassName) use ($className): void {
 			if ($autoloadedClassName !== $className && !$this->isExistsCheckCall()) {
-				throw new \PHPStan\Broker\ClassAutoloadingException($autoloadedClassName);
+				throw new ClassAutoloadingException($autoloadedClassName);
 			}
 		});
 		try {
@@ -91,7 +93,7 @@ class Broker
 		} catch (ClassAutoloadingException $e) {
 			throw $e;
 		} catch (\Throwable $t) {
-			throw new \PHPStan\Broker\ClassAutoloadingException(
+			throw new ClassAutoloadingException(
 				$className,
 				$t
 			);
