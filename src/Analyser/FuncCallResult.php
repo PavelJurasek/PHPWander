@@ -3,8 +3,6 @@
 namespace PHPWander\Analyser;
 
 use PHPWander\PhiTaint;
-use PHPWander\ScalarTaint;
-use PHPWander\Taint;
 use PHPWander\TransitionFunction;
 
 /**
@@ -19,7 +17,7 @@ class FuncCallResult
 	/** @var FuncCallPath[] */
 	private $taintingCallPaths = [];
 
-	/** @var ScalarTaint */
+	/** @var PhiTaint */
 	private $taint;
 
 	/** @var TransitionFunction */
@@ -46,7 +44,7 @@ class FuncCallResult
 		return $this->taintingCallPaths;
 	}
 
-	public function getTaint(): Taint
+	public function getTaint(): PhiTaint
 	{
 		return $this->taint;
 	}

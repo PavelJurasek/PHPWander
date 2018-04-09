@@ -88,7 +88,7 @@ class Broker
 		});
 		try {
 			return $this->hasClassCache[$className] = class_exists($className) || interface_exists($className) || trait_exists($className);
-		} catch (\PHPStan\Broker\ClassAutoloadingException $e) {
+		} catch (ClassAutoloadingException $e) {
 			throw $e;
 		} catch (\Throwable $t) {
 			throw new \PHPStan\Broker\ClassAutoloadingException(

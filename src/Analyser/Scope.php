@@ -11,9 +11,11 @@ use PHPCfg\Op\Stmt;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Temporary;
 use PHPStan\ShouldNotHappenException;
+use PHPWander\PhiTaint;
 use PHPWander\Reflection\ClassReflection;
 use PHPWander\ScalarTaint;
 use PHPWander\Taint;
+use PHPWander\VectorTaint;
 
 class Scope
 {
@@ -230,7 +232,13 @@ class Scope
 	public function getVariableTaint(string $variableName): Taint
 	{
 		if ($this->boundVariable && $match = $this->matchBoundVariable($variableName)) {
-			return $this->boundVariable->getTaint()->getTaint($match);
+			$boundVariableTaint = $this->boundVariable->getTaint();
+
+			if ($boundVariableTaint instanceof VectorTaint) {
+				return $boundVariableTaint->getTaint($match);
+			} else {
+				return $boundVariableTaint;
+			}
 		}
 
 		if (!$this->hasVariableTaint($variableName)) {
@@ -251,7 +259,13 @@ class Scope
 		if ($this->boundVariable) {
 			$match = $this->matchBoundVariable($variableName);
 			if ($match) {
-				$this->boundVariable->getTaint()->addTaint($match, $taint);
+				$boundVariableTaint = $this->boundVariable->getTaint();
+
+				if ($boundVariableTaint instanceof VectorTaint) {
+					$boundVariableTaint->addTaint($match, $taint);
+				} elseif ($boundVariableTaint instanceof PhiTaint) {
+					$boundVariableTaint->addTaint($taint);
+				}
 			}
 		}
 		$variableTaints[$variableName] = $taint;

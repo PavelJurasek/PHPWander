@@ -4,7 +4,6 @@ namespace PHPWander\Analyser;
 
 use PHPWander\PhiTaint;
 use PHPWander\Taint;
-use PHPWander\VectorTaint;
 
 /**
  * @author Pavel Jurásek
@@ -15,7 +14,7 @@ class BoundVariable
 	/** @var string */
 	private $var;
 
-	/** @var VectorTaint */
+	/** @var Taint */
 	private $taint;
 
 	public function __construct(string $var, Taint $taint)
@@ -33,7 +32,7 @@ class BoundVariable
 		return $this->var;
 	}
 
-	public function getTaint(): VectorTaint
+	public function getTaint(): Taint
 	{
 		return $this->taint;
 	}

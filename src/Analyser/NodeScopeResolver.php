@@ -256,7 +256,6 @@ class NodeScopeResolver
 			} else {
 				/** @var VectorTaint $taint */
 				$taint = $scope->getVariableTaint($var);
-				/** @var ObjectType $type */
 				$type = $taint->getType();
 
 				if ($type instanceof UnionType) {
@@ -391,10 +390,10 @@ class NodeScopeResolver
 					$propertyName = $this->printer->printOperand($_op->name, $scope);
 					$class->updateStaticProperty($propertyName, $taint);
 				} elseif ($_op instanceof ArrayDimFetch) {
-					/** @var Op\Expr\PropertyFetch $property */
 					$property = $_op->getAttribute('property');
 
 					if ($property !== null) {
+						/** @var Op\Expr\PropertyFetch $property */
 						$propertyName = $this->printer->print($property, $scope);
 
 						$scope->assignVariable($propertyName, $taint);
