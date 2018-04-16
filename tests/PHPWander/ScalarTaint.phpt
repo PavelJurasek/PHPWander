@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Test: App\PHPWander\Describer\StandardDescriber.
+ * Test: PHPWander\ScalarTaint.
  *
- * @testCase Tests\PHPWander\Describer\StandardDescriberTest
+ * @testCase Tests\PHPWander\ScalarTaintTest
  * @author Pavel Jurásek
- * @package App\PHPWander\Describer
+ * @package PHPWander
  */
 
 namespace Tests\PHPWander\Describer;

@@ -73,6 +73,8 @@ class PhiTaint extends Taint
 			$taint = $other->getOverallTaint()->getTaint();
 		} elseif ($other instanceof ScalarTaint) {
 			$taint = $other->getTaint();
+		} elseif ($other instanceof self) {
+			$taint = $other->getOverallTaint()->getTaint();
 		} else {
 			throw new \InvalidArgumentException(sprintf('Unknow instance of taint: %s', get_class($other)));
 		}

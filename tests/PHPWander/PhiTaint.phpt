@@ -1,24 +1,18 @@
 <?php
 
 /**
- * Test: App\PHPWander\Describer\StandardDescriber.
+ * Test: PHPWander\PhiTaint.
  *
- * @testCase Tests\PHPWander\Describer\StandardDescriberTest
+ * @testCase Tests\PHPWander\PhiTaintTest
  * @author Pavel Jurásek
- * @package App\PHPWander\Describer
+ * @package PHPWander
  */
 
-namespace Tests\PHPWander\Describer;
+namespace Tests\PHPWander;
 
-use PHPStan\Type\ArrayType;
-use PHPStan\Type\IntegerType;
-use PHPStan\Type\ObjectType;
-use PHPStan\Type\StringType;
-use PHPStan\Type\UnionType;
 use PHPWander\PhiTaint;
 use PHPWander\ScalarTaint;
 use PHPWander\Taint;
-use PHPWander\VectorTaint;
 use Tester;
 use Tester\Assert;
 
@@ -41,7 +35,7 @@ class PhiTaintTest extends Tester\TestCase
 		$phiTaint->addTaint($unknown);
 		$phiTaint->addTaint($tainted);
 
-		Assert::true(Taint::TAINTED, $phiTaint->isTainted());
+		Assert::true($phiTaint->isTainted());
 		Assert::same(Taint::TAINTED, $phiTaint->leastUpperBound($tainted)->getTaint());
 
 		$secondPhiTaint = new PhiTaint;
