@@ -70,14 +70,20 @@ class PhiTaint extends Taint
 	public function leastUpperBound(Taint $other): ScalarTaint
 	{
 		if ($other instanceof VectorTaint) {
-			$taint = $other->getOverallTaint();
+			$taint = $other->getOverallTaint()->getTaint();
 		} elseif ($other instanceof ScalarTaint) {
 			$taint = $other->getTaint();
 		} else {
 			throw new \InvalidArgumentException(sprintf('Unknow instance of taint: %s', get_class($other)));
 		}
 
-		return new ScalarTaint(max($this->getOverallTaint()->getTaint(), $taint), TypeCombinator::union($this->getType(), $other->getType()));
+		$overallTaint = $this->getOverallTaint()->getTaint();
+
+		if (($overallTaint === Taint::UNTAINTED && $taint === Taint::TAINTED) || ($overallTaint === Taint::TAINTED && $taint === Taint::UNTAINTED)) {
+			return new ScalarTaint(Taint::BOTH, TypeCombinator::union($this->types, $other->getType()));
+		}
+
+		return new ScalarTaint(max($overallTaint, $taint), TypeCombinator::union($this->types, $other->getType()));
 	}
 
 	public function getSingleVectorTaint(): VectorTaint
