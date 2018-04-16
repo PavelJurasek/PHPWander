@@ -43,7 +43,7 @@ class PhiTaint extends Taint
 		}
 
 		$this->taints[$hash] = $taint;
-		$this->updateType($taint);
+		$this->types[] = $taint->getType();
 	}
 
 	public function getTaints(): array
@@ -79,11 +79,7 @@ class PhiTaint extends Taint
 
 		$overallTaint = $this->getOverallTaint()->getTaint();
 
-		if (($overallTaint === Taint::UNTAINTED && $taint === Taint::TAINTED) || ($overallTaint === Taint::TAINTED && $taint === Taint::UNTAINTED)) {
-			return new ScalarTaint(Taint::BOTH, TypeCombinator::union($this->types, $other->getType()));
-		}
-
-		return new ScalarTaint(max($overallTaint, $taint), TypeCombinator::union($this->types, $other->getType()));
+		return new ScalarTaint($this->taintMapping[$overallTaint][$taint], TypeCombinator::union($other->getType(), ...$this->types));
 	}
 
 	public function getSingleVectorTaint(): VectorTaint
@@ -112,11 +108,6 @@ class PhiTaint extends Taint
 		}
 
 		return $this->resultType = new UnionType($this->types);
-	}
-
-	private function updateType(Taint $taint): void
-	{
-		$this->types[] = $taint->getType();
 	}
 
 }

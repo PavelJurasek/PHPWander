@@ -23,6 +23,33 @@ abstract class Taint
 	public const TAINTED = 2;
 	public const BOTH = 3;
 
+	protected $taintMapping = [
+		Taint::UNKNOWN => [
+			Taint::UNKNOWN => Taint::UNKNOWN,
+			Taint::UNTAINTED => Taint::UNTAINTED,
+			Taint::TAINTED => Taint::TAINTED,
+			Taint::BOTH => Taint::BOTH,
+		],
+		Taint::UNTAINTED => [
+			Taint::UNKNOWN => Taint::UNTAINTED,
+			Taint::UNTAINTED => Taint::UNTAINTED,
+			Taint::TAINTED => Taint::BOTH,
+			Taint::BOTH => Taint::BOTH,
+		],
+		Taint::TAINTED => [
+			Taint::UNKNOWN => Taint::TAINTED,
+			Taint::UNTAINTED => Taint::BOTH,
+			Taint::TAINTED => Taint::TAINTED,
+			Taint::BOTH => Taint::BOTH,
+		],
+		Taint::BOTH => [
+			Taint::UNKNOWN => Taint::BOTH,
+			Taint::UNTAINTED => Taint::BOTH,
+			Taint::TAINTED => Taint::BOTH,
+			Taint::BOTH => Taint::BOTH,
+		],
+	];
+
 	abstract public function leastUpperBound(Taint $other): ScalarTaint;
 
 	abstract public function isTainted(): bool;

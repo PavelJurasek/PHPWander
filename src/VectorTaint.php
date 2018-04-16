@@ -2,7 +2,6 @@
 
 namespace PHPWander;
 
-use PHPStan\Type\MixedType;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeCombinator;
 
@@ -45,7 +44,7 @@ class VectorTaint extends Taint
 
 	public function getOverallTaint(): ScalarTaint
 	{
-		$taint = new ScalarTaint(Taint::UNKNOWN, new MixedType);
+		$taint = new ScalarTaint(Taint::UNKNOWN);
 
 		foreach ($this->taints as $scalarTaint) {
 			$taint = $taint->leastUpperBound($scalarTaint);
@@ -66,11 +65,7 @@ class VectorTaint extends Taint
 
 		$overallTaint = $this->getOverallTaint()->getTaint();
 
-		if (($overallTaint === Taint::UNTAINTED && $taint === Taint::TAINTED) || ($overallTaint === Taint::TAINTED && $taint === Taint::UNTAINTED)) {
-			return new ScalarTaint(Taint::BOTH, TypeCombinator::union($this->type, $other->getType()));
-		}
-
-		return new ScalarTaint(max($overallTaint, $taint), TypeCombinator::intersect($this->type, $other->getType()));
+		return new ScalarTaint($this->taintMapping[$overallTaint][$taint], TypeCombinator::union($this->type, $other->getType()));
 	}
 
 	public function isTainted(): bool

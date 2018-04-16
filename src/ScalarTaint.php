@@ -50,11 +50,7 @@ class ScalarTaint extends Taint
 			throw new \InvalidArgumentException(sprintf('Unknow instance of taint: %s', get_class($other)));
 		}
 
-		if (($this->getTaint() === Taint::UNTAINTED && $taint === Taint::TAINTED) || ($this->getTaint() === Taint::TAINTED && $taint === Taint::UNTAINTED)) {
-			return new ScalarTaint(Taint::BOTH, TypeCombinator::union($this->type, $other->getType()));
-		}
-
-		return new ScalarTaint(max($this->getTaint(), $taint), TypeCombinator::union($this->type, $other->getType()));
+		return new ScalarTaint($this->taintMapping[$this->getTaint()][$taint], TypeCombinator::union($this->type, $other->getType()));
 	}
 
 	public function isTainted(): bool
