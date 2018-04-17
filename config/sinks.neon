@@ -2,11 +2,7 @@ includes:
 	- sanitizers.neon
 
 xss:
-	#echo: [[0], %xss%]
-	#print: [[1], %xss%]
 	print_r: [[1], %xss%]
-	#exit: [[1], %xss%]
-	#die: [[1], %xss%]
 	printf: [[0], %xss%]
 	vprintf: [[0], %xss%]
 	trigger_error: [[1], %xss%]
