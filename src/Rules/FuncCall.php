@@ -73,18 +73,22 @@ class FuncCall extends AbstractRule implements Rule
 
 		foreach ($this->args as $argNumber) {
 			if ($argNumber > 0) {
+				if (!array_key_exists($argNumber-1, $node->args)) {
+					break; // optional argument
+				}
+
 				$arg = $node->args[$argNumber-1];
 
 				if ($this->isArgumentTainted($arg, $scope)) {
 					return [
-						sprintf('%s argument of sensitive%s call %s is tainted.', $this->formatNumber($argNumber), $description ? " $description" : '', $name),
+						sprintf('%s argument of sensitive%s call %s is tainted.%s', $this->formatNumber($argNumber), $description ? " $description" : '', $name, $this->describeTaint($node, $scope)),
 					];
 				}
 			} elseif ($argNumber === 0) {
 				foreach ($node->args as $arg) {
 					if ($this->isArgumentTainted($arg, $scope)) {
 						return [
-							sprintf('Output of sensitive%s call %s is tainted.', $description ? " $description" : '', $name),
+							sprintf('Output of sensitive%s call %s is tainted.%s', $description ? " $description" : '', $name, $this->describeTaint($node, $scope)),
 						];
 					}
 				}
@@ -123,6 +127,21 @@ class FuncCall extends AbstractRule implements Rule
 	protected function formatNumber(int $argNumber): string
 	{
 		return ((string) $argNumber) . '.';
+	}
+
+	private function describeTaint(Op $op, Scope $scope): string
+	{
+		if (count($scope->getStatementStack()) === 0) {
+			return '';
+		}
+
+		$str = ' (';
+
+		foreach ($scope->getStatementStack() as $statement) {
+			$str .= sprintf(' %s%s', $scope->isNegated() ? 'not ': '', $this->describeOp($statement, $scope));
+		}
+
+		return $str . ')';
 	}
 
 }
