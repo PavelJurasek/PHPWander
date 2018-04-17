@@ -244,7 +244,7 @@ class NodeScopeResolver
 		} elseif ($op instanceof Op\Expr\MethodCall) {
 			$var = $this->printer->printOperand($op->var, $scope);
 
-			if ($scope->isInMethodCall() && $scope->getBoundVariable()->getVar() === $var) {
+			if ($scope->isInMethodCall() && $scope->getBoundVariable() !== null && $scope->getBoundVariable()->getVar() === $var) {
 				$taint = $scope->getBoundVariable()->getTaint();
 				$class = $scope->getClass();
 
