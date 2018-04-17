@@ -255,6 +255,7 @@ sqlInjection:
 	mysqli_query: [[2], %sql%]
 	mysqli_real_query: [[1], %sql%]
 	mysqli_master_query: [[2], %sql%]
+	'mysqli->query': [[1], %sql%]
 	oci_execute: [[1], []]
 	ociexecute: [[1], []]
 	ovrimos_exec: [[2], %sql%]
