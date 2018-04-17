@@ -397,7 +397,7 @@ class Scope
 		$this->assertFuncCallArgument($call);
 
 		return new self(
-			$this->file,
+			$func->callableOp->getAttribute('filename', $this->file),
 			$this->getFile(),
 			$this,
 			$this->variableTaints,
