@@ -385,7 +385,25 @@ class StandardPrinterTest extends Tester\TestCase
 				),
 				$scope,
 				'[\'val\', \'b\' => $_GET[\'dim\']]'
-			]
+			],
+			[
+				new Op\Expr\BooleanNot(
+					new Variable(new Literal('x'))
+				),
+				$scope,
+				'!$x'
+			],
+			[
+				new Op\Expr\Isset_([
+					new Variable(new Literal('y')),
+					new ArrayDimFetch(
+						new Variable(new Literal('z')),
+						new Literal('x')
+					)
+				]),
+				$scope,
+				'isset($y, $z[\'x\'])'
+			],
 		];
 	}
 

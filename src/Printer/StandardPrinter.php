@@ -78,6 +78,10 @@ class StandardPrinter implements Printer
 			return sprintf('%s::$%s', $this->print($node->class, $scope), $this->print($node->name, $scope));
 		} elseif ($node instanceof Op\Expr\Array_) {
 			return sprintf('[%s]', $this->printArray($node->keys, $node->values, $scope));
+		} elseif ($node instanceof Op\Expr\BooleanNot) {
+			return sprintf('!%s', $this->printOperand($node->expr, $scope));
+		} elseif ($node instanceof Op\Expr\Isset_) {
+			return sprintf('isset(%s)', $this->printList($node->vars, $scope));
 		}
 
 		dump(__METHOD__);
