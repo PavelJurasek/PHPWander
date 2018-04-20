@@ -11,7 +11,6 @@ use PHPStan\Type\IntegerType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\StringType;
 use PHPStan\Type\TrueBooleanType;
-use PHPStan\Type\TrueOrFalseBooleanType;
 use PHPStan\Type\Type;
 use PHPWander\Broker\Broker;
 use PHPWander\Analyser\Scope;
@@ -116,7 +115,6 @@ class TransitionFunction
 					$taints = [$taintSection];
 					$taint = new ScalarTaint(Taint::TAINTED);
 					$type = 'string';
-					$op->setAttribute(Taint::ATTR, $taint);
 					$op->setAttribute(Taint::ATTR_TAINT, $taints);
 					$op->setAttribute(Taint::ATTR_TYPE, $type);
 				}
@@ -126,7 +124,6 @@ class TransitionFunction
 					$taints = [$source];
 					$taint = new ScalarTaint(Taint::TAINTED);
 					$op->setAttribute(Taint::ATTR_SOURCE, $taints);
-					$op->setAttribute(Taint::ATTR, $taint);
 				}
 
 				$sanitize = $this->sanitizerFunctions->getSanitize($funcName);
@@ -134,17 +131,7 @@ class TransitionFunction
 					$sanitize = [$sanitize];
 					$taint = new ScalarTaint(Taint::UNTAINTED);
 					$op->setAttribute(Taint::ATTR_SANITIZE, $sanitize);
-					$op->setAttribute(Taint::ATTR, $taint);
 				}
-
-//				if ($this->sanitizerFunctions->sanitizesFile($funcName)) {
-//					$taints = ['file'];
-//					$taint = Taint::UNTAINTED;
-//					$op->setAttribute(Taint::ATTR_SANITIZE, $taints);
-//					$op->setAttribute(Taint::ATTR, $taint);
-//
-//					return $taint;
-//				}
 
 				// sinks should be handled by rules?
 				$sink = $this->sinkFunctions->getSink($funcName);
@@ -152,12 +139,19 @@ class TransitionFunction
 					$sink = [$sink];
 					$taint = new ScalarTaint(Taint::TAINTED);
 					$op->setAttribute(Taint::ATTR_SINK, $sink);
-					$op->setAttribute(Taint::ATTR, $taint);
 				}
 
 				if (isset($taint)) {
 					return $taint;
 				}
+
+				$taint = new ScalarTaint(Taint::UNKNOWN);
+
+				foreach ($op->args as $arg) {
+					$taint = $taint->leastUpperBound($this->transfer($scope, $arg));
+				}
+
+				return $taint;
 
 //				$function = $this->broker->getFunction($op->name, $scope);
 //				$type = $function->getReturnType();

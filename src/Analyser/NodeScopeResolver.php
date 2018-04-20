@@ -209,6 +209,7 @@ class NodeScopeResolver
 			} else {
 				$taint = $this->transitionFunction->transferOp($scope, $op);
 				$op->setAttribute(Taint::ATTR, $taint);
+				$scope = $scope->assignTemporary($op->result, $taint);
 			}
 
 		} elseif ($op instanceof ArrayDimFetch) {
