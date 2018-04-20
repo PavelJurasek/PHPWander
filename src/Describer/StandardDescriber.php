@@ -108,6 +108,8 @@ class StandardDescriber implements Describer
 			return implode('', array_map(function ($item) use ($scope) {
 				return $this->printer->print($item, $scope);
 			}, $node->list));
+		} elseif ($node instanceof Op\Expr\Cast) {
+			return sprintf('%s %s', $this->printer->printOp($node, $scope), $this->printer->print($node->expr, $scope));
 		}
 
 		if (!isset($str)) {
