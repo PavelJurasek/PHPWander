@@ -456,7 +456,8 @@ class NodeScopeResolver
 	): Scope
 	{
 		$this->assertFuncCallArgument($call);
-		$bindArgs = $this->bindFuncCallArgs($function, $call, $scope);
+		$bindArgs = [];
+		$scope = $this->bindFuncCallArgs($function, $call, $scope, $nodeCallback, $bindArgs);
 
 		$mapping = $this->findFuncCallMapping($function, $bindArgs);
 
@@ -498,7 +499,8 @@ class NodeScopeResolver
 	): Scope
 	{
 		$this->assertFuncCallArgument($call);
-		$bindArgs = $this->bindFuncCallArgs($function, $call, $scope);
+		$bindArgs = [];
+		$scope = $this->bindFuncCallArgs($function, $call, $scope, $nodeCallback, $bindArgs);
 
 		$mapping = $this->findFuncCallMapping($function, $bindArgs);
 
@@ -533,17 +535,20 @@ class NodeScopeResolver
 		}
 	}
 
-	private function lookForFuncCalls(Operand\Temporary $arg): Taint
+	private function lookForFuncCalls(Operand\Temporary $arg, Scope $scope, callable $nodeCallback): Scope
 	{
 		$taint = new ScalarTaint(Taint::UNKNOWN);
 		if ($arg->original === null) {
 			/** @var Op $op */
 			foreach ($arg->ops as $op) {
+				$scope = $this->processNode($op, $scope, $nodeCallback);
 				$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
 			}
 		}
 
-		return $taint;
+		$scope = $scope->assignTemporary($arg, $taint);
+
+		return $scope;
 	}
 
 	private function processInclude(Scope $scope, Op\Expr\Include_ $op, callable $nodeCallback): Scope
@@ -785,10 +790,8 @@ class NodeScopeResolver
 	/**
 	 * @param Op\Expr\FuncCall|Op\Expr\NsFuncCall|Op\Expr\MethodCall|Op\Expr\StaticCall $call
 	 */
-	private function bindFuncCallArgs(Func $function, Op\Expr $call, Scope $scope): array
+	private function bindFuncCallArgs(Func $function, Op\Expr $call, Scope $scope, callable $nodeCallback, array &$bindArgs): Scope
 	{
-		$bindArgs = [];
-
 		/** @var Op\Expr\Param $param */
 		foreach ($function->params as $i => $param) {
 			if ($param->defaultVar !== null && !array_key_exists($i, $call->args)) {
@@ -806,12 +809,13 @@ class NodeScopeResolver
 						$bindArgs[$this->printer->print($param, $scope)] = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
 					}
 				} else {
-					$bindArgs[$this->printer->print($param, $scope)] = $this->lookForFuncCalls($arg);
+					$scope = $this->lookForFuncCalls($arg, $scope, $nodeCallback);
+					$bindArgs[$this->printer->print($param, $scope)] = $scope->getTemporaryTaint($arg);
 				}
 			}
 		}
 
-		return $bindArgs;
+		return $scope;
 	}
 
 	private function processClassStaticProperties(ClassReflection $classReflection, Scope $scope): VectorTaint
