@@ -200,6 +200,11 @@ class TransitionFunction
 
 		$op->setAttribute(Taint::ATTR, $taint);
 
+		if (!$taint->isTainted()) {
+			$sanitizers = ['string', 'xss'];
+			$op->setAttribute(Taint::ATTR_SANITIZE, $sanitizers);
+		}
+
 		return $scope;
 	}
 
