@@ -4,7 +4,6 @@ namespace PHPWander\Rules;
 
 use PHPCfg\Op;
 use PHPCfg\Operand;
-use PHPCfg\Operand\Literal;
 use PHPWander\Analyser\Scope;
 
 /**
@@ -38,24 +37,6 @@ class VariableFunctionCalled extends AbstractRule implements Rule
 		}
 
 		return [];
-	}
-
-	private function isArgumentTainted(Operand $arg, Scope $scope): bool
-	{
-		if ($arg instanceof Operand\Variable) {
-			return $scope->getVariableTaint($arg->name->value)->isTainted();
-		} if ($arg instanceof Operand\Temporary) {
-			if ($arg->original instanceof Operand\Variable) {
-				return $this->isArgumentTainted($arg->original, $scope);
-			}
-		}
-
-		return true;
-	}
-
-	private function formatNumber(int $argNumber): string
-	{
-		return ((string) $argNumber) . '.';
 	}
 
 }
