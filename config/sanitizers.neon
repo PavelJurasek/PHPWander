@@ -120,7 +120,7 @@ preg:
 	- preg_quote
 
 file:
-	- basename
+	- basename # use whitelisting instead?
 	- dirname
 	- pathinfo
 

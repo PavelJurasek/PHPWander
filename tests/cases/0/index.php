@@ -5,16 +5,16 @@ function id($s) {
 }
 
 // tainted
-$c = file_get_contents(__DIR__ . '/' . id($_GET['f']));
+$a = file_get_contents(__DIR__ . '/' . id($_GET['f']));
 
 // tainted, infinite recursion or any file in given directory
-$d = file_get_contents(__DIR__ . '/' . basename($_GET['f']));
+$b = file_get_contents(__DIR__ . '/' . basename($_GET['f']));
 
 // tainted
-$d = file_get_contents(__DIR__ . '/' . $_GET['f']);
+$c = file_get_contents(__DIR__ . '/' . $_GET['f']);
 
 // tainted
-print_r($c);
+print_r($b);
 
 // tainted
 echo $c;
