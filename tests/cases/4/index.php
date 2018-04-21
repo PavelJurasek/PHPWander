@@ -12,4 +12,4 @@ if ($bool = array_key_exists('file', $_GET)) {
 }
 
 // tainted
-echo $user['id'];
+echo $user['email'];
