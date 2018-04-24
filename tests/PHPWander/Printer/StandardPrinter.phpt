@@ -51,6 +51,11 @@ class StandardPrinterTest extends Tester\TestCase
 				'str'
 			],
 			[
+				new Literal(false),
+				$scope,
+				'false'
+			],
+			[
 				new Variable(new Literal('abc')),
 				$scope,
 				'$abc',
