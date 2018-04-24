@@ -255,7 +255,7 @@ class StandardPrinterTest extends Tester\TestCase
 					new Variable(new Literal('var'))
 				),
 				$scope,
-				'(int)',
+				'(int) $var',
 			],
 			[
 				new Op\Terminal\Return_,

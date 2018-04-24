@@ -45,7 +45,7 @@ class StandardPrinter implements Printer
 			$class = get_class($node);
 			$cast = strtolower(rtrim(substr($class, strrpos($class, '\\') + 1), '_'));
 
-			return sprintf('(%s)', $cast);
+			return sprintf('(%s) %s', $cast, $this->print($node->expr, $scope));
 		} elseif ($node instanceof Op\Terminal\Return_) {
 			return $node->expr ? sprintf('return %s', $this->printOperand($node->expr, $scope)) : 'return';
 		} elseif ($node instanceof Op\Stmt\Jump) {
