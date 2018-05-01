@@ -7,6 +7,7 @@ services:
 	- PHPWander\Rules\FileInclusion
 	- PHPWander\Rules\TypeConfusion\InArray
 	- PHPWander\Rules\FuncCallFactory(@sinkFunctions)
+	- PHPWander\Rules\Eval_
 
 decorator:
 	PHPWander\Rules\Rule:
