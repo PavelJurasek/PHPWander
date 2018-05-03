@@ -137,8 +137,10 @@ class FuncCall extends AbstractRule implements Rule
 
 		$str = ' (';
 
+		/** @var Op\Stmt $statement */
 		foreach ($scope->getStatementStack() as $statement) {
-			$str .= sprintf(' %s%s', $scope->isNegated() ? 'not ': '', $this->describeOp($statement, $scope));
+			$blockScope = $statement->getAttribute('block', $scope);
+			$str .= sprintf(' %s%s', $blockScope->isNegated() ? 'not ': '', $this->describeOp($statement, $scope));
 		}
 
 		return $str . ')';
