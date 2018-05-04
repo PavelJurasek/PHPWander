@@ -65,10 +65,10 @@ class FuncCall extends AbstractRule implements Rule
 	 */
 	protected function checkTaints(Op $node, Scope $scope, string $name, ?string $description = null): array
 	{
+		$errors = [];
+
 		if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && $node->getAttribute(Taint::ATTR_SINK) !== null) {
-			return [
-				sprintf('Sensitive sink %s is tainted.', $name),
-			];
+			$errors[] = sprintf('Sensitive sink %s is tainted.', $name);
 		}
 
 		foreach ($this->args as $argNumber) {
@@ -80,22 +80,18 @@ class FuncCall extends AbstractRule implements Rule
 				$arg = $node->args[$argNumber-1];
 
 				if ($this->isArgumentTainted($arg, $scope)) {
-					return [
-						sprintf('%s argument of sensitive%s call %s is tainted.%s', $this->formatNumber($argNumber), $description ? " $description" : '', $name, $this->describeTaint($node, $scope)),
-					];
+					$errors[] = sprintf('%s argument of sensitive%s call %s is tainted.%s', $this->formatNumber($argNumber), $description ? " $description" : '', $name, $this->describeTaint($node, $scope));
 				}
 			} elseif ($argNumber === 0) {
 				foreach ($node->args as $arg) {
 					if ($this->isArgumentTainted($arg, $scope)) {
-						return [
-							sprintf('Output of sensitive%s call %s is tainted.%s', $description ? " $description" : '', $name, $this->describeTaint($node, $scope)),
-						];
+						$errors[] = sprintf('Output of sensitive%s call %s is tainted.%s', $description ? " $description" : '', $name, $this->describeTaint($node, $scope));
 					}
 				}
 			}
 		}
 
-		return [];
+		return $errors;
 	}
 
 	protected function isArgumentTainted(Operand $arg, Scope $scope): bool
