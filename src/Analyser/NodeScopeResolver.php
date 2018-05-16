@@ -860,7 +860,7 @@ class NodeScopeResolver
 					}
 				}
 
-				$staticTaints->addTaint($property->name->value, $property->defaultVar->ops[0]->getAttribute(Taint::ATTR));
+				$staticTaints->addTaint($property->name->value, $property->defaultVar->ops[0]->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
 			} else {
 				dump($property);
 				die;
