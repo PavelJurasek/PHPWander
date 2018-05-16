@@ -272,6 +272,10 @@ class Scope
 		}
 		$variableTaints[$variableName] = $taint;
 
+		if (!$this->isInFuncCall() && $this->classReflection === null && $this->boundVariable === null && $this->parentScope) {
+			$this->getRootScope()->variableTaints[$variableName] = $taint;
+		}
+
 		return new self(
 			$this->getFile(),
 			$this->getAnalysedContextFile(),
@@ -339,6 +343,10 @@ class Scope
 
 		$temporaryTaints = $this->getTemporaryTaints();
 		$temporaryTaints[$this->hash($temporary)] = $taint;
+
+		if (!$this->isInFuncCall() && $this->classReflection === null && $this->boundVariable === null && $this->parentScope) {
+			$this->getRootScope()->temporaries[$this->hash($temporary)] = $taint;
+		}
 
 		return new self(
 			$this->getFile(),
