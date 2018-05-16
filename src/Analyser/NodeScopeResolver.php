@@ -561,39 +561,55 @@ class NodeScopeResolver
 	{
 		if ($op->expr instanceof Operand\Temporary) {
 			if ($this->isExprResolvable($op->expr)) {
-				$file = $this->resolveIncludedFile($op->expr, $scope);
+				$files = $this->resolveIncludedFile($op->expr, $scope);
 
-				if (is_file($file)) {
-					if (!array_key_exists($file, $this->analysedFiles)) {
-						$this->addAnalysedFile($file);
-						$scriptScope = $this->processScript(
-							$this->parser->parseFile($file),
-							$scope->enterFile($file),
-							$nodeCallback
-						);
+				if (count($files) === 0 && $op->expr->original instanceof Operand\Variable) {
+					$taint = $scope->getVariableTaint($this->printer->printOperand($op->expr->original, $scope));
 
-						$scope = $scriptScope->leaveFile();
-
-						$taint = $scriptScope->getResultTaint();
-
-						$this->includedFilesResults[$file] = $taint;
-					} elseif (array_key_exists($file, $this->includedFilesResults)) {
-						$taint = $this->includedFilesResults[$file];
-					} else {
-						$taint = new ScalarTaint(Taint::UNKNOWN);
+					if ($taint->isTainted()) {
+						$threats = ['file'];
+						$op->setAttribute(Taint::ATTR_THREATS, $threats);
 					}
 
-					$threats = ['result'];
-
 					$op->setAttribute(Taint::ATTR, $taint);
-					$op->setAttribute(Taint::ATTR_THREATS, $threats);
 				}
+
+				foreach ($files as $file) {
+					if (is_file($file)) {
+						if (!array_key_exists($file, $this->analysedFiles)) {
+							$this->addAnalysedFile($file);
+							$scriptScope = $this->processScript(
+								$this->parser->parseFile($file),
+								$scope->enterFile($file),
+								$nodeCallback
+							);
+
+							$scope = $scriptScope->leaveFile();
+
+							$taint = $scriptScope->getResultTaint();
+
+							$this->includedFilesResults[$file] = $taint;
+						} elseif (array_key_exists($file, $this->includedFilesResults)) {
+							$taint = $this->includedFilesResults[$file];
+						} else {
+							$taint = new ScalarTaint(Taint::UNKNOWN);
+						}
+
+						$threats = ['result'];
+
+						if (!$this->isSafeForFileInclusion($op->expr, $scope)) {
+							$threats[] = 'file';
+						}
+
+						$op->setAttribute(Taint::ATTR, $taint);
+						$op->setAttribute(Taint::ATTR_THREATS, $threats);
+					}
+				}
+
 			} elseif ($this->isSafeForFileInclusion($op->expr, $scope)) {
 				$taint = new ScalarTaint(Taint::UNTAINTED);
-				$threats = ['file'];
 
 				$op->setAttribute(Taint::ATTR, $taint);
-				$op->setAttribute(Taint::ATTR_THREATS, $threats);
 
 			} else {
 				$taint = new ScalarTaint(Taint::TAINTED);
@@ -636,32 +652,34 @@ class NodeScopeResolver
 			return $scope;
 		}
 
-		dump(__FUNCTION__);
-		dump($scope);
-		die;
-
 		return $scope;
 	}
 
-	private function resolveIncludedFile(Operand\Temporary $expr, Scope $scope): string
+	private function resolveIncludedFile(Operand\Temporary $expr, Scope $scope): array
 	{
 		if (!empty($expr->ops)) {
 			return $this->unpackExpression($expr->ops[0], $scope);
 		}
 
-		dump('?');
-		dump($expr);
-		die;
-
-		return '?';
+		return ['?'];
 	}
 
-	private function unpackExpression($expr, Scope $scope): string
+	private function unpackExpression($expr, Scope $scope): array
 	{
-		if ($expr instanceof Operand) {
-			return $this->printer->printOperand($expr, $scope);
+		if ($expr instanceof Operand\Literal) {
+			return [$this->printer->printOperand($expr, $scope)];
+		} elseif ($expr instanceof Op\Phi) {
+			$vars = array_map(function ($expr) use ($scope) {
+				return implode('', $this->unpackExpression($expr, $scope));
+			}, $expr->vars);
+
+			return $vars;
+//			return array_filter($vars, function ($var) {
+//				return $var !== '';
+//			});
+
 		} elseif ($expr instanceof BinaryOp\Concat) {
-			return $this->unpackExpression($expr->left, $scope) . $this->unpackExpression($expr->right, $scope);
+			return $this->unpackConcat($expr->left, $expr->right, $scope);
 		} elseif ($expr instanceof Assign) {
 			return $this->unpackExpression($expr->expr, $scope);
 		} elseif ($expr instanceof Operand\Temporary) {
@@ -671,11 +689,52 @@ class NodeScopeResolver
 
 			return $this->unpackExpression($expr->original, $scope);
 		} elseif ($expr instanceof Op\Expr\ConstFetch) {
+			$constName = $this->printer->printOperand($expr->name, $scope);
+
+			if ($scope->hasConstant($constName)) {
+				return [$scope->getConstant($constName)];
+			}
+
+			return $this->unpackExpression($expr->name, $scope);
+		} elseif ($expr instanceof Op\Expr\FuncCall) {
+			if ($expr->name->value === 'dirname') {
+				return [dirname($expr->args[0]->value)];
+			}
+		} elseif ($expr instanceof Op\Expr\ConcatList) {
+			if (count($expr->list) === 2) {
+				return $this->unpackConcat($expr->list[0], $expr->list[1], $scope);
+			}
+		} elseif ($expr instanceof Op\Iterator\Value) {
+//			$vars = array_map(function ($expr) use ($scope) {
+//				return implode('', $this->unpackExpression($expr, $scope));
+//			}, $expr->vars);
+
+//			return $vars;
+
+			return $this->unpackExpression($expr->var, $scope);
+		} elseif ($expr instanceof Op\Expr\Array_) {
+			$values = array_map(function ($expr) use ($scope) {
+				return implode('', $this->unpackExpression($expr, $scope));
+			}, $expr->values);
+
+			return $values;
+		} elseif ($expr instanceof Op\Expr\Param) {
 			return $this->unpackExpression($expr->name, $scope);
 		}
 
-		dump($expr);
-		die;
+		return [];
+	}
+
+	private function unpackConcat($left, $right, Scope $scope): array
+	{
+		$values = [];
+		foreach ($this->unpackExpression($left, $scope) as $left) {
+			foreach ($this->unpackExpression($right, $scope) as $right) {
+				$values[] = $left . $right;
+			}
+		}
+
+		return $values;
 	}
 
 	private function isExprResolvable($expr): bool
@@ -692,15 +751,32 @@ class NodeScopeResolver
 				return $this->isExprResolvable($expr->original);
 			}
 
-			dump('??');
-			die;
 //			return $this->isExprResolvable($expr->ops[0]); // all ops?
 		} elseif ($expr instanceof Assign) {
 			return $this->isExprResolvable($expr->expr);
 		} elseif ($expr instanceof BinaryOp\Concat) {
 			return $this->isExprResolvable($expr->left) && $this->isExprResolvable($expr->right);
+		} elseif ($expr instanceof Op\Expr\ConcatList) {
+			foreach ($expr->list as $item) {
+				if (!$this->isExprResolvable($item)) {
+					return false;
+				}
+			}
+
+			return true;
+
 		} elseif ($expr instanceof Op\Expr\ConstFetch) {
 			return $this->isExprResolvable($expr->name);
+		} elseif ($expr instanceof Op\Phi) {
+			foreach ($expr->vars as $var) {
+				if (!$this->isExprResolvable($var)) {
+					return false;
+				}
+			}
+
+			return true;
+		} elseif ($expr instanceof Op\Expr\FuncCall) {
+			return true;
 		}
 
 		return false;
