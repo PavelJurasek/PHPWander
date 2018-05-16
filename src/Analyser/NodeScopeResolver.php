@@ -427,7 +427,8 @@ class NodeScopeResolver
 				$variable = $op->var->original;
 
 				if ($this->transitionFunction->isSuperGlobal($variable, $scope)) {
-					$taint = $this->transitionFunction->transferSuperGlobal($variable, $this->unpackExpression($op->dim, $scope));
+					$dim = $this->unpackExpression($op->dim, $scope);
+					$taint = $this->transitionFunction->transferSuperGlobal($variable, $dim ? $dim[0] : null);
 				} else {
 					$taint = $this->transitionFunction->transfer($scope, $variable);
 				}
