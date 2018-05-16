@@ -72,7 +72,7 @@ class Broker
 				// parsed file is traversed and class passed via $broker->addClass()
 				$this->parser->parseFile($reflectionClass->getFileName());
 			} else {
-				$this->classReflections[$className] = new ClassReflection($this, $reflectionClass->getName(), $reflectionClass->getFileName() ?: 'native', null);
+				$this->classReflections[$className] = new ClassReflection($this, $reflectionClass->getName(), $reflectionClass->getFileName() ?: 'native', null, null);
 			}
 		}
 

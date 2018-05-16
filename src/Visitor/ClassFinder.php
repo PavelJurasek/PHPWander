@@ -32,7 +32,8 @@ class ClassFinder extends AbstractVisitor
 					$this->broker,
 					(string) $className,
 					(string) $node->getFile(),
-					$node
+					$node,
+					$node->extends ? $node->extends->value : null
 				));
 			}
 		}

@@ -5,6 +5,7 @@ namespace PHPWander\Reflection;
 use PHPCfg\Op\Stmt\Class_;
 use PHPCfg\Op\Stmt\ClassMethod;
 use PHPCfg\Op\Stmt\Property;
+use PHPStan\Reflection\MissingMethodFromReflectionException;
 use PHPWander\Broker\Broker;
 use PHPWander\Taint;
 use PHPWander\VectorTaint;
@@ -36,16 +37,21 @@ class ClassReflection
 	/** @var VectorTaint|null */
 	private $staticPropertiesTaint;
 
+	/** @var null|string */
+	private $parentClass;
+
 	public function __construct(
 		Broker $broker,
 		string $displayName,
 		string $file,
-		?Class_ $classDefinition
+		?Class_ $classDefinition,
+		?string $parentClass
 	) {
 		$this->broker = $broker;
 		$this->displayName = $displayName;
 		$this->file = $file;
 		$this->classDefinition = $classDefinition;
+		$this->parentClass = $parentClass;
 
 		if ($classDefinition) {
 			$properties = [];
@@ -95,11 +101,19 @@ class ClassReflection
 
 	public function hasMethod(string $methodName): bool
 	{
-		return array_key_exists($methodName, $this->methods);
+		return array_key_exists($methodName, $this->methods) || ($this->parentClass !== null && $this->broker->getClass($this->parentClass)->getMethod($methodName));
 	}
 
 	public function getMethod(string $methodName): ClassMethod
 	{
+		if (!array_key_exists($methodName, $this->methods)) {
+			if ($this->parentClass !== null) {
+				return $this->broker->getClass($this->parentClass)->getMethod($methodName);
+			}
+
+			throw new MissingMethodFromReflectionException($this->displayName, $methodName);
+		}
+
 		return $this->methods[$methodName];
 	}
 
