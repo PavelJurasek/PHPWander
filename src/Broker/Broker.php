@@ -41,6 +41,7 @@ class Broker
 	public function addClass(string $className, ClassReflection $classReflection): void
 	{
 		$this->classReflections[$className] = $classReflection;
+		$this->hasClassCache[$className] = true;
 	}
 
 	public function getClass(string $className): ClassReflection
