@@ -61,7 +61,7 @@ class StandardDescriber implements Describer
 			}
 
 		} elseif ($node instanceof Op\Expr\BinaryOp\Concat) {
-			$str = sprintf('concat of %s and %s on line %s in file %s', $this->describeOperand($node->left, $scope), $this->describeOperand($node->right, $scope), $node->getLine(), $node->getFile());
+			$str = sprintf('concat of %s . %s', $this->printer->print($node->left, $scope), $this->printer->print($node->right, $scope));
 		} elseif ($node instanceof Op\Expr\BinaryOp) {
 			$str = sprintf('%s %s %s', $this->describeOperand($node->left, $scope), $this->printer->printBinaryOp($node), $this->describeOperand($node->right, $scope));
 		} elseif ($node instanceof Op\Phi) {
@@ -110,6 +110,10 @@ class StandardDescriber implements Describer
 			}, $node->list));
 		} elseif ($node instanceof Op\Expr\Cast) {
 			return sprintf('%s %s', $this->printer->printOp($node, $scope), $this->printer->print($node->expr, $scope));
+		} elseif ($node instanceof Op\Stmt\Switch_) {
+			return 'in *switch*';
+		} elseif ($node instanceof Op\Expr\ConstFetch) {
+			return $this->printer->print($node, $scope);
 		}
 
 		if (!isset($str)) {
