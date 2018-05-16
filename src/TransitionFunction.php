@@ -5,12 +5,11 @@ namespace PHPWander;
 use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Literal;
-use PHPStan\Type\FalseBooleanType;
+use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\FloatType;
 use PHPStan\Type\IntegerType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\StringType;
-use PHPStan\Type\TrueBooleanType;
 use PHPStan\Type\Type;
 use PHPWander\Broker\Broker;
 use PHPWander\Analyser\Scope;
@@ -271,7 +270,7 @@ class TransitionFunction
 	private function resolveType($value): Type
 	{
 		if (is_bool($value)) {
-			return $value ? new TrueBooleanType : new FalseBooleanType;
+			return new ConstantBooleanType($value);
 		} elseif (is_integer($value)) {
 			return new IntegerType;
 		} elseif (is_double($value)) {
