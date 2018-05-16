@@ -27,7 +27,7 @@ class FileInclusion extends AbstractRule implements Rule
 	 */
 	public function processNode(Op $node, Scope $scope): array
 	{
-		if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && in_array('file', $node->getAttribute('threats'), true)) {
+		if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() || in_array('file', $node->getAttribute('threats', []), true)) {
 			return [
 				sprintf('File inclusion is tainted by non-static string %s.', $this->printOperand($node->expr, $scope)),
 			];
