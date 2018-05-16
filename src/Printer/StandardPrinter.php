@@ -82,6 +82,10 @@ class StandardPrinter implements Printer
 			return sprintf('!%s', $this->printOperand($node->expr, $scope));
 		} elseif ($node instanceof Op\Expr\Isset_) {
 			return sprintf('isset(%s)', $this->printList($node->vars, $scope));
+		} elseif ($node instanceof Op\Expr\ClassConstFetch) {
+			return sprintf('%s::%s', $this->printOperand($node->class, $scope), $this->printOperand($node->name, $scope));
+		} elseif ($node instanceof Op\Expr\InstanceOf_) {
+			return sprintf('%s instanceof %s', $this->printOperand($node->expr, $scope), $this->printOperand($node->class, $scope));
 		}
 
 		dump(__METHOD__);

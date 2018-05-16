@@ -409,6 +409,30 @@ class StandardPrinterTest extends Tester\TestCase
 				$scope,
 				'isset($y, $z[\'x\'])'
 			],
+			[
+				new Op\Expr\ClassConstFetch(
+					new Literal('CustomClass'),
+					new Literal('CONST')
+				),
+				$scope,
+				'CustomClass::CONST',
+			],
+			[
+				new Op\Expr\ClassConstFetch(
+					new Variable(new Literal('var')),
+					new Literal('CONST')
+				),
+				$scope,
+				'$var::CONST',
+			],
+			[
+				new Op\Expr\InstanceOf_(
+					new Variable(new Literal('var')),
+					new Literal('CustomClass')
+				),
+				$scope,
+				'$var instanceof CustomClass',
+			],
 		];
 	}
 
