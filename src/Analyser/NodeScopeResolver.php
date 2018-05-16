@@ -13,9 +13,9 @@ use PHPCfg\Op\Expr\ArrayDimFetch;
 use PHPCfg\Op\Expr\Assign;
 use PHPCfg\Op\Expr\BinaryOp;
 use PHPStan\ShouldNotHappenException;
+use PHPStan\Type\BooleanType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
-use PHPStan\Type\TrueOrFalseBooleanType;
 use PHPStan\Type\TypeWithClassName;
 use PHPStan\Type\UnionType;
 use PHPWander\Broker\Broker;
@@ -297,7 +297,7 @@ class NodeScopeResolver
 			$scope = $scope->assignTemporary($op->result, $taint);
 
 		} elseif ($op instanceof Op\Expr\BooleanNot) {
-			$taint = new ScalarTaint(Taint::UNTAINTED, new TrueOrFalseBooleanType);
+			$taint = new ScalarTaint(Taint::UNTAINTED, new BooleanType);
 			$scope = $scope->assignTemporary($op->result, $taint);
 			$op->setAttribute(Taint::ATTR, $taint);
 		} elseif ($op instanceof Op\Expr\StaticCall) {
