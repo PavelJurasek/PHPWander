@@ -198,6 +198,9 @@ class NodeScopeResolver
 		} elseif ($op instanceof Op\Stmt\JumpIf) {
 			$scope = $this->processIf($op, $scope, $nodeCallback);
 
+		} elseif ($op instanceof Op\Stmt\Switch_) {
+			$scope = $this->processSwitch($op, $scope, $nodeCallback);
+
 		} elseif ($op instanceof Assign) {
 			$scope = $this->processAssign($scope, $op);
 
@@ -737,6 +740,27 @@ class NodeScopeResolver
 	{
 		$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
 		$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
+
+		return $scope;
+	}
+
+	private function processSwitch(Op\Stmt\Switch_ $op, Scope $scope, callable $nodeCallback): Scope
+	{
+		$defaultReached = false;
+
+		/** @var Block $target */
+		foreach ($op->targets as $target) {
+			$scope = $this->processBlock($target, $scope, $nodeCallback, $op);
+
+			$firstChild = $target->children[0];
+			if ($firstChild instanceof Op\Stmt\Jump && $firstChild->target === $op->default) {
+				$defaultReached = true;
+			}
+		}
+
+		if (!$defaultReached) {
+			$scope = $this->processBlock($op->default, $scope, $nodeCallback, $op);
+		}
 
 		return $scope;
 	}
