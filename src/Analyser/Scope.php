@@ -479,4 +479,14 @@ class Scope
 		}
 	}
 
+	private function getRootScope(): self
+	{
+		$scope = $this;
+		while ($scope->parentScope !== null) {
+			$scope = $scope->parentScope;
+		}
+
+		return $scope;
+	}
+
 }
