@@ -29,7 +29,7 @@ class FileInclusion extends AbstractRule implements Rule
 	{
 		if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && in_array('file', $node->getAttribute('threats'), true)) {
 			return [
-				sprintf('File inclusion is tainted by non-static string.'),
+				sprintf('File inclusion is tainted by non-static string %s.', $this->printOperand($node->expr, $scope)),
 			];
 		}
 
