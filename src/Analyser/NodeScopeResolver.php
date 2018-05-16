@@ -333,6 +333,8 @@ class NodeScopeResolver
 			$op->setAttribute(Taint::ATTR, $taints);
 		} elseif ($op instanceof Op\Expr\Array_) {
 			$scope = $this->processArrayCreation($op, $scope, null);
+		} elseif ($op instanceof Op\Expr\Isset_) {
+			$scope = $scope->assignTemporary($op->result, new ScalarTaint(Taint::UNTAINTED, new BooleanType));
 		}
 
 		$nodeCallback($op, $scope);
