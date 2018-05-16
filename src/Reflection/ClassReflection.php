@@ -62,7 +62,7 @@ class ClassReflection
 			foreach (array_filter($this->classDefinition->stmts->children, function ($stmt) {
 				return $stmt instanceof ClassMethod;
 			}) as $method) {
-				$methods[$method->func->name] = $method;
+				$methods[$method->func->name->name] = $method;
 			}
 			$this->methods = $methods;
 		}
