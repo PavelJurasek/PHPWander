@@ -193,7 +193,9 @@ class Scope
 
 	public function getStatementForBlock(Block $block): ?Stmt
 	{
-		return $this->statementStack[$this->hash($block)];
+		$hash = $this->hash($block);
+
+		return array_key_exists($hash, $this->statementStack) ? $this->statementStack[$hash] : null;
 	}
 
 	public function getCurrentStatement(): ?Stmt
