@@ -101,7 +101,7 @@ class ClassReflection
 
 	public function hasMethod(string $methodName): bool
 	{
-		return array_key_exists($methodName, $this->methods) || ($this->parentClass !== null && $this->broker->getClass($this->parentClass)->getMethod($methodName));
+		return array_key_exists($methodName, $this->methods) || ($this->parentClass !== null && $this->broker->getClass($this->parentClass)->hasMethod($methodName));
 	}
 
 	public function getMethod(string $methodName): ClassMethod
