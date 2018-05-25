@@ -688,7 +688,15 @@ class NodeScopeResolver
 			return $this->unpackConcat($expr->left, $expr->right, $scope);
 		} elseif ($expr instanceof Assign) {
 			return $this->unpackExpression($expr->expr, $scope);
+		} elseif ($expr instanceof Operand\Variable) {
+			$taint = $scope->getVariableTaint($this->printer->print($expr, $scope));
+			return [$taint];
+
 		} elseif ($expr instanceof Operand\Temporary) {
+			if ($expr->original !== null) {
+				return $this->unpackExpression($expr->original, $scope);
+			}
+
 			if (!empty($expr->ops)) {
 				return $this->unpackExpression($expr->ops[0], $scope);
 			}
