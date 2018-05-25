@@ -52,10 +52,6 @@ class Registry
 			$classRules = $this->rules[$nodeType];
 
 			foreach ($classRules as $classRule) {
-				$classRuleClass = get_class($classRule);
-//				if (!array_key_exists($classRuleClass, $rules)) {
-//					$rules[$classRuleClass] = $classRule;
-//				}
 				$rules[] = $classRule;
 			}
 		}

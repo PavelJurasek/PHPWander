@@ -62,9 +62,4 @@ class InArray extends AbstractRule implements Rule
 		return true;
 	}
 
-	private function formatNumber(int $argNumber): string
-	{
-		return ((string) $argNumber) . '.';
-	}
-
 }
