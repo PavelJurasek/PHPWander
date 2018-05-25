@@ -63,16 +63,13 @@ class StandardDescriber implements Describer
 		} elseif ($node instanceof Op\Expr\BinaryOp) {
 			$str = sprintf('%s %s %s', $this->describeOperand($node->left, $scope), $this->printer->printBinaryOp($node), $this->describeOperand($node->right, $scope));
 		} elseif ($node instanceof Op\Phi) {
-			$parentBlock = $scope->getParentBlock();
-
-			if ($parentBlock === null) {
-				dump(__METHOD__);
-				dump('no parent block');
-				die;
+			if (count($node->vars) === 1) {
+				return $this->describeOperand($node->vars[0], $scope);
 			}
 
+			$parentBlock = $scope->getParentBlock();
+
 			$stmt = $scope->getStatementForBlock($parentBlock);
-//			dump($scope->getCurrentBlock());
 
 			/** @var Operand\Variable $var */
 			foreach ($node->vars as $var) {
