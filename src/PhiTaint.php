@@ -14,7 +14,7 @@ use PHPStan\Type\UnionType;
 class PhiTaint extends Taint
 {
 
-	/** @var Type */
+	/** @var Type|null */
 	private $resultType;
 
 	/** @var Type[] */
@@ -94,7 +94,10 @@ class PhiTaint extends Taint
 			throw new ShouldNotHappenException;
 		}
 
-		return reset($vectors);
+		/** @var VectorTaint $vector */
+		$vector = reset($vectors);
+
+		return $vector;
 	}
 
 	public function getType(): Type

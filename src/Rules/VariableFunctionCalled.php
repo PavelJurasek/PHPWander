@@ -31,7 +31,7 @@ class VariableFunctionCalled extends AbstractRule implements Rule
 
 			if ($scope->getVariableTaint($name)->isTainted()) {
 				return [
-					sprintf('Variable function is called on variable %s.', $this->printOperand($node->name, $scope)),
+					sprintf('Variable function is called on tainted variable %s.', $this->printOperand($node->name, $scope)),
 				];
 			}
 		}
