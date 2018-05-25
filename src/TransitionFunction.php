@@ -9,6 +9,7 @@ use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\FloatType;
 use PHPStan\Type\IntegerType;
 use PHPStan\Type\MixedType;
+use PHPStan\Type\NullType;
 use PHPStan\Type\StringType;
 use PHPStan\Type\Type;
 use PHPWander\Broker\Broker;
@@ -176,6 +177,14 @@ class TransitionFunction
 			}
 
 			return $taint;
+		} elseif ($op instanceof Op\Expr\ConstFetch) {
+			$name = $this->printer->print($op->name, $scope);
+
+			if (in_array($name, ['true', 'false', 'null'], true)) {
+				return new ScalarTaint(Taint::UNTAINTED, $this->resolveConstantLiteralType($name));
+			}
+
+			return $this->transfer($scope, $op->name);
 		}
 
 		return new ScalarTaint(Taint::UNKNOWN);
@@ -265,6 +274,20 @@ class TransitionFunction
 		}
 
 		return new ScalarTaint(Taint::TAINTED);
+	}
+
+	private function resolveConstantLiteralType(string $name): Type
+	{
+		switch (strtolower($name)) {
+			case 'true':
+				return new ConstantBooleanType(true);
+			case 'false':
+				return new ConstantBooleanType(false);
+			case 'null':
+				return new NullType;
+			default:
+				return new MixedType;
+		}
 	}
 
 	private function resolveType($value): Type
