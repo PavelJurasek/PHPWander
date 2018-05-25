@@ -14,8 +14,10 @@ use PHPCfg\Op\Expr\Assign;
 use PHPCfg\Op\Expr\BinaryOp;
 use PHPStan\ShouldNotHappenException;
 use PHPStan\Type\BooleanType;
+use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
+use PHPStan\Type\Type;
 use PHPStan\Type\TypeWithClassName;
 use PHPStan\Type\UnionType;
 use PHPWander\Broker\Broker;
@@ -828,8 +830,19 @@ class NodeScopeResolver
 
 	private function processIf(Op\Stmt\JumpIf $op, Scope $scope, callable $nodeCallback): Scope
 	{
-		$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
-		$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
+		$evaluation = $this->evaluate($op->cond->ops[0], $scope);
+		$op->setAttribute('eval', $evaluation);
+
+		if ($evaluation instanceof MixedType) {
+			$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
+			$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
+		} elseif ($evaluation instanceof ConstantBooleanType) {
+			if ($evaluation->getValue() === true) {
+				$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
+			} else {
+				$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
+			}
+		}
 
 		return $scope;
 	}
@@ -883,18 +896,24 @@ class NodeScopeResolver
 
 				$taint->addTaint($path->getTaint());
 			} elseif ($op instanceof Op\Stmt\JumpIf) {
-				$ifPath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_TRUE);
-				$ifPath->setTaint($this->collectTaintsOfSubgraph($op->if, $funcCallResult, $blockTaintStorage, $ifPath));
-				$taint->addTaint($ifPath->getTaint());
-				if ($parent === null) {
-					$funcCallResult->addPath($ifPath);
+				$eval = $op->getAttribute('eval', new MixedType);
+
+				if ($eval instanceof MixedType || ($eval instanceof ConstantBooleanType && $eval->getValue() === true)) {
+					$ifPath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_TRUE);
+					$ifPath->setTaint($this->collectTaintsOfSubgraph($op->if, $funcCallResult, $blockTaintStorage, $ifPath));
+					$taint->addTaint($ifPath->getTaint());
+					if ($parent === null) {
+						$funcCallResult->addPath($ifPath);
+					}
 				}
 
-				$elsePath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_FALSE);
-				$elsePath->setTaint($this->collectTaintsOfSubgraph($op->else, $funcCallResult, $blockTaintStorage, $elsePath));
-				$taint->addTaint($elsePath->getTaint());
-				if ($parent === null) {
-					$funcCallResult->addPath($elsePath);
+				if ($eval instanceof MixedType || ($eval instanceof ConstantBooleanType && $eval->getValue() === false)) {
+					$elsePath = new FuncCallPath($parent, $op, FuncCallPath::EVAL_FALSE);
+					$elsePath->setTaint($this->collectTaintsOfSubgraph($op->else, $funcCallResult, $blockTaintStorage, $elsePath));
+					$taint->addTaint($elsePath->getTaint());
+					if ($parent === null) {
+						$funcCallResult->addPath($elsePath);
+					}
 				}
 
 				$blockTaintStorage->put($cfg, $taint);
@@ -1001,6 +1020,20 @@ class NodeScopeResolver
 		$op->setAttribute('items', $items);
 
 		return $scope;
+	}
+
+	private function evaluate(Op $expr, Scope $scope): Type
+	{
+		if ($expr instanceof BinaryOp\Identical) {
+			$left = $this->transitionFunction->transfer($scope, $expr->left);
+			$right = $this->transitionFunction->transfer($scope, $expr->right);
+
+			if ($left->getType()->accepts($right->getType())) {
+				return new ConstantBooleanType(true);
+			}
+		}
+
+		return new MixedType;
 	}
 
 }
