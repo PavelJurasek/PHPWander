@@ -476,12 +476,6 @@ class NodeScopeResolver
 		if ($mapping !== null) {
 			$taint = $mapping->getTaint();
 		} else {
-			$scope = $scope->enterFuncCall($function, $call);
-
-			foreach ($bindArgs as $argName => $argTaint) {
-				$scope = $scope->assignVariable($argName, $argTaint);
-			}
-
 			$scope = $this->processBlock($function->cfg, $scope, $nodeCallback, null, false, true);
 
 			$funcCallResult = new FuncCallResult($this->transitionFunction);
@@ -519,12 +513,6 @@ class NodeScopeResolver
 		if ($mapping !== null) {
 			$taint = $mapping->getTaint();
 		} else {
-			$scope = $scope->enterMethodCall($function, $call, $classReflection, $boundVariable);
-
-			foreach ($bindArgs as $argName => $argTaint) {
-				$scope = $scope->assignVariable($argName, $argTaint);
-			}
-
 			$scope = $this->processBlock($function->cfg, $scope, $nodeCallback, null, false, true);
 
 			$funcCallResult = new FuncCallResult($this->transitionFunction);
@@ -549,16 +537,28 @@ class NodeScopeResolver
 
 	private function lookForFuncCalls(Operand\Temporary $arg, Scope $scope, callable $nodeCallback): Scope
 	{
-		$taint = new ScalarTaint(Taint::UNKNOWN);
-		if ($arg->original === null) {
+		if (count($arg->ops) === 1) {
+			/** @var Op $op */
+			$op = $arg->ops[0];
+			if ($op->getAttribute(Taint::ATTR) === null) {
+				$scope = $this->processNode($op, $scope, $nodeCallback);
+			}
+
+			$scope = $scope->assignTemporary($arg, $op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
+
+			return $scope;
+		} else {
+			$taint = new ScalarTaint(Taint::UNKNOWN);
 			/** @var Op $op */
 			foreach ($arg->ops as $op) {
-				$scope = $this->processNode($op, $scope, $nodeCallback);
+				if ($op->getAttribute(Taint::ATTR) === null) {
+					$scope = $this->processNode($op, $scope, $nodeCallback);
+				}
 				$taint = $taint->leastUpperBound($op->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN)));
 			}
-		}
 
-		$scope = $scope->assignTemporary($arg, $taint);
+			$scope = $scope->assignTemporary($arg, $taint);
+		}
 
 		return $scope;
 	}
@@ -901,27 +901,41 @@ class NodeScopeResolver
 	 */
 	private function bindFuncCallArgs(Func $function, Op\Expr $call, Scope $scope, callable $nodeCallback, array &$bindArgs): Scope
 	{
+		$scope = $scope->enterFuncCall($function, $call);
+
 		/** @var Op\Expr\Param $param */
 		foreach ($function->params as $i => $param) {
-			if ($param->defaultVar !== null && !array_key_exists($i, $call->args)) {
-				continue;
-			}
+			$variableName = $this->printer->print($param, $scope);
 
-			/** @var Operand $arg */
-			$arg = $call->args[$i];
+			if (array_key_exists($i, $call->args)) {
+				/** @var Operand $arg */
+				$arg = $call->args[$i];
 
-			if ($arg instanceof Operand\Temporary) {
-				if ($arg->original instanceof Operand\Variable) {
-					if ($this->transitionFunction->isSuperGlobal($arg->original, $scope)) {
-						$bindArgs[$this->printer->print($param, $scope)] = $this->transitionFunction->transferSuperGlobal($arg->original);
+				if ($arg instanceof Operand\Temporary) {
+					if ($arg->original instanceof Operand\Variable) {
+						if ($this->transitionFunction->isSuperGlobal($arg->original, $scope)) {
+							$taint = $this->transitionFunction->transferSuperGlobal($arg->original);
+						} else {
+							$taint = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
+						}
 					} else {
-						$bindArgs[$this->printer->print($param, $scope)] = $scope->getVariableTaint($this->printer->printOperand($arg, $scope));
+						$scope = $this->lookForFuncCalls($arg, $scope, $nodeCallback);
+						$taint = $scope->getTemporaryTaint($arg);
 					}
-				} else {
-					$scope = $this->lookForFuncCalls($arg, $scope, $nodeCallback);
-					$bindArgs[$this->printer->print($param, $scope)] = $scope->getTemporaryTaint($arg);
+				} elseif ($arg instanceof Operand\Literal) {
+					$taint = $this->transitionFunction->transfer($scope, $arg);
 				}
+
+			} else {
+				if ($param->defaultVar === null) {
+					continue; // missing param, report?
+				}
+
+				$taint = $this->transitionFunction->transfer($scope, $param->defaultVar);
 			}
+
+			$bindArgs[$variableName] = $taint;
+			$scope = $scope->assignVariable($variableName, $taint);
 		}
 
 		return $scope;
