@@ -951,6 +951,8 @@ class NodeScopeResolver
 					}
 				} elseif ($arg instanceof Operand\Literal) {
 					$taint = $this->transitionFunction->transfer($scope, $arg);
+				} else {
+					$taint = new ScalarTaint(Taint::UNKNOWN);
 				}
 
 			} else {
