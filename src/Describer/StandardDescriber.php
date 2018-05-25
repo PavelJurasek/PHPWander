@@ -51,9 +51,7 @@ class StandardDescriber implements Describer
 		} elseif ($node instanceof Op\Stmt\JumpIf) {
 			$str = $this->printer->print($node, $scope);
 		} elseif ($node instanceof Op\Stmt\Jump) {
-//			$str = sprintf('jump');
-//			$blockScope = $this->blockScopeStorage->get($node->target);
-			$blockScope = $node->getAttribute('block');
+			$blockScope = $node->getAttribute('block', $scope);
 
 			$str = $blockScope->isNegated() ? 'not ' : '';
 			foreach ($node->target->children as $_op) {
