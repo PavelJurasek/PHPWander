@@ -62,9 +62,9 @@ class Echo_ extends AbstractRule implements Rule
 	{
 		$str = sprintf('Echo is tainted by %s', $this->describeOp($op, $scope));
 
-		foreach ($scope->getStatementStack() as $statement) {
-			$str .= sprintf(' %s%s', $scope->isNegated() ? 'not ': '', $this->describeOp($statement, $scope));
-		}
+//		foreach ($scope->getStatementStack() as $statement) {
+//			$str .= sprintf(' %s%s', $scope->isNegated() ? 'not ': '', $this->describeOp($statement, $scope));
+//		}
 
 		return $str . '.';
 	}
