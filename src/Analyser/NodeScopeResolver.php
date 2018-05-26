@@ -137,7 +137,7 @@ class NodeScopeResolver
 	private function processBlock(Block $block, Scope $scope, callable $opCallback, Op\Stmt $stmt = null, bool $negated = false, bool $omitSavedBlock = false): Scope
 	{
 		if ($this->blockScopeStorage->hasBlock($block) && !$omitSavedBlock) {
-			return $scope;
+			return $this->blockScopeStorage->get($block);
 		}
 
 		$blockScope = $scope->enterBlock($block, $stmt, $negated);
