@@ -471,6 +471,7 @@ class NodeScopeResolver
 	{
 		$this->assertFuncCallArgument($call);
 		$bindArgs = [];
+		$scope = $scope->enterFuncCall($function, $call);
 		$scope = $this->bindFuncCallArgs($function, $call, $scope, $nodeCallback, $bindArgs);
 
 		$mapping = $this->findFuncCallMapping($function, $bindArgs);
@@ -508,6 +509,7 @@ class NodeScopeResolver
 	{
 		$this->assertFuncCallArgument($call);
 		$bindArgs = [];
+		$scope = $scope->enterMethodCall($function, $call, $classReflection, $boundVariable);
 		$scope = $this->bindFuncCallArgs($function, $call, $scope, $nodeCallback, $bindArgs);
 
 		$mapping = $this->findFuncCallMapping($function, $bindArgs);
@@ -928,8 +930,6 @@ class NodeScopeResolver
 	 */
 	private function bindFuncCallArgs(Func $function, Op\Expr $call, Scope $scope, callable $nodeCallback, array &$bindArgs): Scope
 	{
-		$scope = $scope->enterFuncCall($function, $call);
-
 		/** @var Op\Expr\Param $param */
 		foreach ($function->params as $i => $param) {
 			$variableName = $this->printer->print($param, $scope);
