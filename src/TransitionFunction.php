@@ -2,19 +2,21 @@
 
 namespace PHPWander;
 
+use Nette\NotImplementedException;
 use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Literal;
+use PHPStan\Reflection\SignatureMap\SignatureMapProvider;
+use PHPStan\ShouldNotHappenException;
 use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\Constant\ConstantFloatType;
 use PHPStan\Type\Constant\ConstantIntegerType;
 use PHPStan\Type\Constant\ConstantStringType;
-use PHPStan\Type\FloatType;
-use PHPStan\Type\IntegerType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\NullType;
-use PHPStan\Type\StringType;
 use PHPStan\Type\Type;
+use PHPStan\Type\TypeWithClassName;
+use PHPStan\Type\UnionType;
 use PHPWander\Broker\Broker;
 use PHPWander\Analyser\Scope;
 use PHPWander\Printer\Printer;
@@ -43,13 +45,17 @@ class TransitionFunction
 	/** @var TaintFunctions */
 	private $taintFunctions;
 
+	/** @var SignatureMapProvider */
+	private $signatureMapProvider;
+
 	public function __construct(
 		Broker $broker,
 		Printer $printer,
 		SourceFunctions $sourceFunctions,
 		SinkFunctions $sinkFunctions,
 		SanitizerFunctions $sanitizerFunctions,
-		TaintFunctions $taintFunctions
+		TaintFunctions $taintFunctions,
+		SignatureMapProvider $signatureMapProvider
 	) {
 		$this->broker = $broker;
 		$this->printer = $printer;
@@ -57,6 +63,7 @@ class TransitionFunction
 		$this->sinkFunctions = $sinkFunctions;
 		$this->sanitizerFunctions = $sanitizerFunctions;
 		$this->taintFunctions = $taintFunctions;
+		$this->signatureMapProvider = $signatureMapProvider;
 	}
 
 	public function transfer(Scope $scope, Operand $node): Taint
@@ -113,42 +120,17 @@ class TransitionFunction
 			if ($op->name instanceof Literal) {
 				$funcName = $this->printer->printOperand($op->name, $scope);
 
-				$taintSection = $this->taintFunctions->getTaint($funcName);
-				if ($taintSection) {
-					$taints = [$taintSection];
-					$taint = new ScalarTaint(Taint::TAINTED);
-					$type = 'string';
-					$op->setAttribute(Taint::ATTR_TAINT, $taints);
-					$op->setAttribute(Taint::ATTR_TYPE, $type);
 				}
 
-				$source = $this->sourceFunctions->getSource($funcName);
-				if ($source) {
-					$taints = [$source];
-					$taint = new ScalarTaint(Taint::TAINTED);
-					$op->setAttribute(Taint::ATTR_SOURCE, $taints);
-				}
+				$type = $this->getReturnTypeFromSignature($funcName);
 
-				$sanitize = $this->sanitizerFunctions->getSanitize($funcName);
-				if ($sanitize) {
-					$sanitize = [$sanitize];
-					$taint = new ScalarTaint(Taint::UNTAINTED);
-					$op->setAttribute(Taint::ATTR_SANITIZE, $sanitize);
-				}
+				$taint = $this->processFuncCall($funcName, $op, $type);
 
-				// sinks should be handled by rules?
-				$sink = $this->sinkFunctions->getSink($funcName);
-				if ($sink) {
-					$sink = [$sink];
-					$taint = new ScalarTaint(Taint::TAINTED);
-					$op->setAttribute(Taint::ATTR_SINK, $sink);
-				}
-
-				if (isset($taint)) {
+				if ($taint !== null) {
 					return $taint;
 				}
 
-				$taint = new ScalarTaint(Taint::UNKNOWN);
+				$taint = new ScalarTaint(Taint::UNKNOWN, $type);
 
 				foreach ($op->args as $arg) {
 					$taint = $taint->leastUpperBound($this->transfer($scope, $arg));
@@ -167,6 +149,45 @@ class TransitionFunction
 				dump('?');
 				dump($op);
 			}
+		} elseif ($op instanceof Op\Expr\MethodCall) {
+			$var = $this->printer->printOperand($op->var, $scope);
+
+			if ($scope->hasVariableTaint($var)) {
+				$taint = $scope->getVariableTaint($var);
+				$type = $taint->getType();
+
+				if ($type instanceof UnionType) {
+					$classes = $type->getReferencedClasses();
+
+					if (count($classes) === 0) {
+						throw new ShouldNotHappenException; // todo process all classes
+					} elseif (count($classes) > 1) {
+						throw new NotImplementedException;
+					}
+
+					$className = reset($classes);
+				} elseif ($type instanceof TypeWithClassName) {
+					$className = $type->getClassName();
+				}
+
+				if (isset($className)) {
+					$funcName = $this->printer->printOperand($op->name, $scope);
+
+					$classCallName = sprintf('%s->%s', $className, $funcName);
+					$signatureName = sprintf('%s::%s', $className, $funcName);
+
+					$type = $this->getReturnTypeFromSignature($signatureName);
+
+					$taint = $this->processFuncCall($classCallName, $op, $type);
+
+					if ($taint !== null) {
+						return $taint;
+					}
+
+					return new ScalarTaint(Taint::UNKNOWN, $type);
+				}
+			}
+
 		} elseif ($op instanceof Op\Expr\PropertyFetch) {
 			return $scope->getVariableTaint($this->printer->print($op, $scope));
 
@@ -306,6 +327,60 @@ class TransitionFunction
 		}
 
 		return new MixedType;
+	}
+
+	private function processFuncCall(string $funcName, Op $op, Type $returnType): ?Taint
+	{
+		$taint = null;
+
+		$taintSection = $this->taintFunctions->getTaint($funcName);
+		if ($taintSection) {
+			$taints = [$taintSection];
+			$taint = new ScalarTaint(Taint::TAINTED, $returnType);
+			$type = 'string';
+			$op->setAttribute(Taint::ATTR_TAINT, $taints);
+			$op->setAttribute(Taint::ATTR_TYPE, $type);
+		}
+
+		$source = $this->sourceFunctions->getSource($funcName);
+		if ($source) {
+			$taints = [$source];
+			$taint = new ScalarTaint(Taint::TAINTED, $returnType);
+			$op->setAttribute(Taint::ATTR_SOURCE, $taints);
+		}
+
+		$sanitize = $this->sanitizerFunctions->getSanitize($funcName);
+		if ($sanitize) {
+			$sanitize = [$sanitize];
+			$taint = new ScalarTaint(Taint::UNTAINTED, $returnType);
+			$op->setAttribute(Taint::ATTR_SANITIZE, $sanitize);
+		}
+
+		// sinks should be handled by rules?
+		$sink = $this->sinkFunctions->getSink($funcName);
+		if ($sink) {
+			$sink = [$sink];
+			$taint = new ScalarTaint(Taint::TAINTED, $returnType);
+			$op->setAttribute(Taint::ATTR_SINK, $sink);
+		}
+
+		return $taint;
+	}
+
+	private function getReturnTypeFromSignature(string $signatureName, ?Type $default = null)
+	{
+		if ($default === null) {
+			$default = new MixedType;
+		}
+
+		$type = $default;
+		if ($this->signatureMapProvider->hasFunctionSignature($signatureName)) {
+			$signature = $this->signatureMapProvider->getFunctionSignature($signatureName, null);
+
+			$type = $signature->getReturnType();
+		}
+
+		return $type;
 	}
 
 }

@@ -7,6 +7,8 @@ parameters:
 
 	excludeFiles: []
 
+	universalObjectCratesClasses: []
+
 includes:
 	- rules.neon
 
@@ -41,6 +43,56 @@ services:
 
 	broker:
 		class: PHPWander\Broker\Broker
+
+	- PhpParser\PrettyPrinter\Standard
+
+	- PHPStan\Type\FileTypeMapper
+
+	cacheStorage:
+		class: PHPStan\Cache\FileCacheStorage
+		arguments:
+			directory: %tmpDir%/cache/PHPStan
+		autowired: no
+
+	-
+		class: PHPStan\Cache\Cache
+		arguments:
+			storage: @cacheStorage
+
+
+	- PHPStan\Broker\AnonymousClassNameHelper(%currentWorkingDirectory%)
+
+	- PHPStan\Parser\FunctionCallStatementFinder
+
+	- PHPStan\PhpDoc\PhpDocStringResolver
+	- PHPStan\PhpDoc\PhpDocNodeResolver
+	- PHPStan\PhpDoc\TypeNodeResolver
+	- PHPStan\PhpDoc\TypeStringResolver
+
+	- PHPStan\PhpDocParser\Lexer\Lexer
+	-
+		class: PHPStan\PhpDocParser\Parser\TypeParser
+	-
+		class: PHPStan\PhpDocParser\Parser\ConstExprParser
+	-
+		class: PHPStan\PhpDocParser\Parser\PhpDocParser
+
+	- PHPStan\Reflection\Annotations\AnnotationsMethodsClassReflectionExtension
+	- PHPStan\Reflection\Annotations\AnnotationsPropertiesClassReflectionExtension
+	- PHPStan\Reflection\FunctionReflectionFactory
+	- PHPStan\Reflection\Php\PhpMethodReflectionFactory
+	- PHPStan\Reflection\Php\PhpClassReflectionExtension
+	- PHPStan\Reflection\PhpDefect\PhpDefectClassReflectionExtension
+	- PHPStan\Reflection\SignatureMap\SignatureMapParser
+	- PHPStan\Reflection\SignatureMap\SignatureMapProvider
+
+	stanBroker:
+		class: PHPStan\Broker\Broker
+		factory: @brokerFactory::create
+
+	brokerFactory:
+		class: PHPStan\Broker\BrokerFactory
+
 
 	nodeTraverser: PhpParser\NodeTraverser
 
