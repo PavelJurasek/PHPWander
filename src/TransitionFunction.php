@@ -6,6 +6,9 @@ use PHPCfg\Op;
 use PHPCfg\Operand;
 use PHPCfg\Operand\Literal;
 use PHPStan\Type\Constant\ConstantBooleanType;
+use PHPStan\Type\Constant\ConstantFloatType;
+use PHPStan\Type\Constant\ConstantIntegerType;
+use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\FloatType;
 use PHPStan\Type\IntegerType;
 use PHPStan\Type\MixedType;
@@ -295,11 +298,11 @@ class TransitionFunction
 		if (is_bool($value)) {
 			return new ConstantBooleanType($value);
 		} elseif (is_integer($value)) {
-			return new IntegerType;
+			return new ConstantIntegerType($value);
 		} elseif (is_double($value)) {
-			return new FloatType;
+			return new ConstantFloatType($value);
 		} elseif (is_string($value)) {
-			return new StringType;
+			return new ConstantStringType($value);
 		}
 
 		return new MixedType;
