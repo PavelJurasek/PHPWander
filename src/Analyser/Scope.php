@@ -344,7 +344,7 @@ class Scope
 		$temporaryTaints = $this->getTemporaryTaints();
 		$temporaryTaints[$this->hash($temporary)] = $taint;
 
-		if (!$this->isInFuncCall() && $this->classReflection === null && $this->boundVariable === null && $this->parentScope) {
+		if (!$this->isInFuncCall() && $this->classReflection === null && $this->boundVariable === null && $this->parentScope && count($this->statementStack) === 0) {
 			$this->getRootScope()->temporaries[$this->hash($temporary)] = $taint;
 		}
 
