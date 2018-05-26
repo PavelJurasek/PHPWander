@@ -23,11 +23,15 @@ class Broker
 	/** @var Parser */
 	private $parser;
 
-	public function __construct(Parser $parser)
+	/** @var \PHPStan\Broker\Broker */
+	private $broker;
+
+	public function __construct(Parser $parser, \PHPStan\Broker\Broker $broker)
 	{
 		$this->parser = $parser;
 
 		self::$instance = $this;
+		$this->broker = $broker;
 	}
 
 	public static function getInstance(): self
