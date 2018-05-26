@@ -149,7 +149,7 @@ class Scope
 
 		$statements = $this->statementStack;
 		if ($stmt) {
-			$statements[$this->hash($block)] = $stmt;
+			$statements[$this->hash($stmt)] = $stmt;
 		}
 
 		return new self(
