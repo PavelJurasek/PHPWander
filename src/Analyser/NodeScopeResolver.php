@@ -832,7 +832,7 @@ class NodeScopeResolver
 
 	private function processIf(Op\Stmt\JumpIf $op, Scope $scope, callable $nodeCallback): Scope
 	{
-		$evaluation = $this->evaluate($op->cond->ops[0], $scope);
+		$evaluation = $this->evaluate($op->cond, $scope);
 		$op->setAttribute('eval', $evaluation);
 
 		if ($evaluation instanceof MixedType) {
@@ -1024,9 +1024,17 @@ class NodeScopeResolver
 		return $scope;
 	}
 
-	private function evaluate(Op $expr, Scope $scope): Type
+	private function evaluate($expr, Scope $scope): Type
 	{
-		if ($expr instanceof BinaryOp\Identical) {
+		if ($expr instanceof Operand\Literal) {
+			return $this->transitionFunction->transfer($scope, $expr)->getType();
+		} elseif ($expr instanceof Operand\Temporary) {
+			if ($expr->original) {
+				return $this->evaluate($expr->original, $scope);
+			}
+
+			return $this->evaluate($expr->ops[0], $scope);
+		} elseif ($expr instanceof BinaryOp\Identical) {
 			$left = $this->transitionFunction->transfer($scope, $expr->left);
 			$right = $this->transitionFunction->transfer($scope, $expr->right);
 
