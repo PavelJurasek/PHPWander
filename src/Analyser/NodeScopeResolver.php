@@ -15,6 +15,8 @@ use PHPCfg\Op\Expr\BinaryOp;
 use PHPStan\ShouldNotHappenException;
 use PHPStan\Type\BooleanType;
 use PHPStan\Type\Constant\ConstantBooleanType;
+use PHPStan\Type\ConstantScalarType;
+use PHPStan\Type\ConstantType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
@@ -835,15 +837,15 @@ class NodeScopeResolver
 		$evaluation = $this->evaluate($op->cond, $scope);
 		$op->setAttribute('eval', $evaluation);
 
-		if ($evaluation instanceof MixedType) {
-			$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
-			$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
-		} elseif ($evaluation instanceof ConstantBooleanType) {
-			if ($evaluation->getValue() === true) {
+		if ($evaluation instanceof ConstantScalarType) {
+			if ($evaluation->toBoolean()->getValue() === true) {
 				$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
 			} else {
 				$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
 			}
+		} else {
+			$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
+			$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
 		}
 
 		return $scope;
