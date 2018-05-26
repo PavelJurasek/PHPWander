@@ -6,11 +6,11 @@ use Nette\Utils\Strings;
 use PHPCfg\Op;
 use PHPCfg\Operand\Literal;
 use PHPStan\Type\TypeWithClassName;
+use PHPStan\Type\UnionType;
 use PHPWander\Analyser\BlockScopeStorage;
 use PHPWander\Analyser\FuncCallStorage;
 use PHPWander\Analyser\Scope;
 use PHPWander\Describer\Describer;
-use PHPWander\VectorTaint;
 
 /**
  * @author Pavel Jurásek
@@ -49,17 +49,21 @@ class MethodCall extends FuncCall implements Rule
 	{
 		$calledVariable = $this->printOperand($node->var, $scope);
 		$variableTaint = $scope->getVariableTaint($calledVariable);
+		$type = $variableTaint->getType();
 
-		if (!$variableTaint instanceof VectorTaint || !$variableTaint->getType() instanceof TypeWithClassName) {
+		if (!$type instanceof TypeWithClassName && !($type instanceof UnionType && count($type->getReferencedClasses()) > 0)) {
 			return [
 				sprintf('Type of variable %s is not known.', $calledVariable),
 			];
 		}
 
-		/** @var TypeWithClassName $variableType */
-		$variableType = $variableTaint->getType();
+		if ($type instanceof TypeWithClassName) {
+			$classNames = [$type->getClassName()];
+		} else {
+			$classNames = $type->getReferencedClasses();
+		}
 
-		if ($this->className !== $variableType->getClassName()) {
+		if (!in_array($this->className, $classNames, true)) {
 			return [];
 		}
 
