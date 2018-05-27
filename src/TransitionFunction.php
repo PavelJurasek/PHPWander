@@ -120,8 +120,6 @@ class TransitionFunction
 			if ($op->name instanceof Literal) {
 				$funcName = $this->printer->printOperand($op->name, $scope);
 
-				}
-
 				$type = $this->getReturnTypeFromSignature($funcName);
 
 				$taint = $this->processFuncCall($funcName, $op, $type);
