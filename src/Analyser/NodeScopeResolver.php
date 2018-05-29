@@ -632,7 +632,7 @@ class NodeScopeResolver
 
 			return $scope;
 		} elseif ($op->expr instanceof Operand\Literal) {
-			$file = dirname($scope->getFile()) . '/' . $this->printer->printOperand($op->expr, $scope);
+			$file = dirname($scope->getFile()) .DIRECTORY_SEPARATOR. $this->printer->printOperand($op->expr, $scope);
 
 			if (is_file($file)) {
 				if (!array_key_exists($file, $this->analysedFiles)) {

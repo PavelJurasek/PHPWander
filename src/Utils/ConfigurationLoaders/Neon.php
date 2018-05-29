@@ -38,7 +38,7 @@ class Neon implements ConfigurationLoader
 			$params = [];
 			if (array_key_exists('includes', $this->data)) {
 				foreach ($this->data['includes'] as $file) {
-					$params = array_merge($params, $this->neon->decode(file_get_contents(dirname($this->file) . '/' . $file)));
+					$params = array_merge($params, $this->neon->decode(file_get_contents(dirname($this->file) .DIRECTORY_SEPARATOR. $file)));
 				}
 
 				unset($this->data['includes']);

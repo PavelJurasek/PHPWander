@@ -99,7 +99,7 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 		}
 
 		if (!isset($tmpDir)) {
-			$tmpDir = sys_get_temp_dir() . '/phpstan';
+			$tmpDir = sys_get_temp_dir() .DIRECTORY_SEPARATOR. 'phpwander';
 			if (!@mkdir($tmpDir, 0777, true) && !is_dir($tmpDir)) {
 				$consoleStyle->error(sprintf('Cannot create a temp directory %s', $tmpDir));
 				return 1;

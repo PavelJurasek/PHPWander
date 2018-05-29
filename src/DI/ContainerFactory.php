@@ -25,8 +25,8 @@ class ContainerFactory
 	{
 		$this->currentWorkingDirectory = $currentWorkingDirectory;
 		$fileHelper = new FileHelper($currentWorkingDirectory);
-		$this->rootDirectory = $fileHelper->normalizePath(__DIR__ . '/../..');
-		$this->configDirectory = $this->rootDirectory . '/config';
+		$this->rootDirectory = $fileHelper->normalizePath(dirname(dirname(__DIR__)));
+		$this->configDirectory = $this->rootDirectory .DIRECTORY_SEPARATOR. 'config';
 	}
 
 	public function create(
@@ -49,7 +49,7 @@ class ContainerFactory
 			'cliArgumentsVariablesRegistered' => ini_get('register_argc_argv') === '1',
 			'tmpDir' => $tempDirectory,
 		]);
-		$configurator->addConfig($this->configDirectory . '/config.neon');
+		$configurator->addConfig($this->configDirectory .DIRECTORY_SEPARATOR. 'config.neon');
 		foreach ($additionalConfigFiles as $additionalConfigFile) {
 			$configurator->addConfig($additionalConfigFile);
 		}

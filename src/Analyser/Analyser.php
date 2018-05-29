@@ -198,11 +198,12 @@ class Analyser
 	 */
 	private function createErrors(Op $node, string $file, array $messages): array
 	{
-		$file = preg_replace("~$this->rootDir/~i",  '', $file);
+		$pattern = sprintf("~%s%s~i", preg_quote($this->rootDir), preg_quote(DIRECTORY_SEPARATOR));
+		$file = preg_replace($pattern,  '', $file);
 
 		$errors = [];
 		foreach ($messages as $message) {
-			$errors[] = new Error(preg_replace("~$this->rootDir/~i",  '', $message), $file, $node->getLine());
+			$errors[] = new Error(preg_replace($pattern,  '', $message), $file, $node->getLine());
 		}
 
 		return $errors;
