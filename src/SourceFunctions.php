@@ -50,8 +50,9 @@ class SourceFunctions implements IConfiguration
 
 	public function getSourceCategory(string $functionName): ?string
 	{
-		$categories = array_merge($this->inner->getTree(), $this->extra);
+		$categories = array_merge_recursive($this->inner->getTree(), $this->extra);
 		foreach ($categories as $category => $functions) {
+			var_dump($functions);
 			if (in_array($functionName, $functions, true)) {
 				return $category;
 			}
