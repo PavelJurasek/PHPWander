@@ -6,6 +6,7 @@ use Nette\Configurator;
 use Nette\DI\Extensions\DecoratorExtension;
 use Nette\DI\Extensions\ExtensionsExtension;
 use Nette\DI\Extensions\PhpExtension;
+use PHPStan\Broker\Broker;
 use PHPStan\File\FileHelper;
 use Tracy\Bridges\Nette\TracyExtension;
 
@@ -54,7 +55,13 @@ class ContainerFactory
 			$configurator->addConfig($additionalConfigFile);
 		}
 
-		return $configurator->createContainer();
+		$container = $configurator->createContainer();
+
+		/** @var Broker $broker */
+		$broker = $container->getService('stanBroker');
+		Broker::registerInstance($broker);
+
+		return $container;
 	}
 
 	public function getCurrentWorkingDirectory(): string
