@@ -29,7 +29,9 @@ if (!isset($tmpDir)) {
 	$tmpDir = sys_get_temp_dir() . '/phpwander';
 }
 
-$additionalConfigFiles = [];
+$additionalConfigFiles = [
+	__DIR__ . '/phpwander.neon',
+];
 
 $localConfigFile = __DIR__ . '/config/config.local.neon';
 if (file_exists($localConfigFile)) {
