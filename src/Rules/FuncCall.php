@@ -67,10 +67,6 @@ class FuncCall extends AbstractRule implements Rule
 	{
 		$errors = [];
 
-		if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && $node->getAttribute(Taint::ATTR_SINK) !== null) {
-			$errors[] = sprintf('Sensitive sink %s is tainted.', $name);
-		}
-
 		foreach ($this->args as $argNumber) {
 			if ($argNumber > 0) {
 				if (!array_key_exists($argNumber-1, $node->args)) {
@@ -88,6 +84,13 @@ class FuncCall extends AbstractRule implements Rule
 						$errors[] = sprintf('Output of sensitive%s call %s is tainted.%s', $description ? " $description" : '', $name, $this->describeTaint($node, $scope));
 					}
 				}
+			}
+		}
+
+		if ($errors === []) {
+			if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && $node->getAttribute(Taint::ATTR_SINK) !== null) {
+				var_dump($node->getAttribute(Taint::ATTR_SINK));
+				$errors[] = sprintf('Sensitive sink %s is tainted.', $name);
 			}
 		}
 
