@@ -833,7 +833,7 @@ class NodeScopeResolver
 		$op->setAttribute('eval', $evaluation);
 
 		if ($evaluation instanceof ConstantScalarType) {
-			if ($evaluation->toBoolean()->getValue() === true) {
+			if ($evaluation->getValue() == true) { // intentionally ==
 				$scope = $this->processBlock($op->if, $scope, $nodeCallback, $op);
 			} else {
 				$scope = $this->processBlock($op->else, $scope, $nodeCallback, $op, true);
