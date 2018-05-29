@@ -1,3 +1,14 @@
 parameters:
 	autoloadDirectories:
 		- tests/cases/
+
+services:
+#	- PHPWander\Rules\TypeConfusion\InArray
+
+sources:
+	databaseInput:
+		- mysqli_result->fetch_all
+
+sinks:
+	xss:
+		'F::sensitive': [[1], []]
