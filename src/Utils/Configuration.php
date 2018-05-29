@@ -51,7 +51,11 @@ class Configuration implements IConfiguration
 			return $array;
 		}
 
-		return array_merge(...array_values($array));
+		$arrays = array_map(function ($sub) {
+			return (array) $sub;
+		}, array_values($array));
+
+		return (array) array_merge(...$arrays);
 	}
 
 }
