@@ -14,22 +14,24 @@ class SourceFunctions implements IConfiguration
 	/** @var Configuration */
 	private $inner;
 
+	/** @var array */
+	private $extra;
+
 	/** @var array|null */
 	private $flat;
 
-	public function __construct(Configuration $inner)
+	public function __construct(Configuration $inner, array $extra = [])
 	{
 		$this->inner = $inner;
+		$this->extra = $extra;
 	}
 
 	public function getAll(): array
 	{
 		if ($this->flat === null) {
-			$this->flat = array_merge(
-				$this->getSection('fileInput'),
-				$this->getSection('databaseInput'),
-				$this->getSection('otherInput')
-			);
+			$inner = $this->inner->getAll();
+			unset($inner['userinput'], $inner['serverParameters']);
+			$this->flat = array_merge($inner, $this->inner->flatten($this->extra));
 		}
 
 		return $this->flat;
@@ -37,14 +39,21 @@ class SourceFunctions implements IConfiguration
 
 	public function getSection(string $section): array
 	{
-		return $this->inner->getSection($section);
+		$sectionData = $this->inner->getSection($section);
+
+		if (array_key_exists($section, $this->extra)) {
+			$sectionData = array_merge($sectionData, $this->extra[$section]);
+		}
+
+		return $sectionData;
 	}
 
-	public function getSource(string $functionName): ?string
+	public function getSourceCategory(string $functionName): ?string
 	{
-		foreach ($this->inner->getTree() as $section => $functions) {
+		$categories = array_merge($this->inner->getTree(), $this->extra);
+		foreach ($categories as $category => $functions) {
 			if (in_array($functionName, $functions, true)) {
-				return $section;
+				return $category;
 			}
 		}
 

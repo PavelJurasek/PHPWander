@@ -340,14 +340,14 @@ class TransitionFunction
 			$op->setAttribute(Taint::ATTR_TYPE, $type);
 		}
 
-		$source = $this->sourceFunctions->getSource($funcName);
+		$source = $this->sourceFunctions->getSourceCategory($funcName);
 		if ($source) {
 			$taints = [$source];
 			$taint = new ScalarTaint(Taint::TAINTED, $returnType);
 			$op->setAttribute(Taint::ATTR_SOURCE, $taints);
 		}
 
-		$sanitize = $this->sanitizerFunctions->getSanitize($funcName);
+		$sanitize = $this->sanitizerFunctions->getSanitizingCategory($funcName);
 		if ($sanitize) {
 			$sanitize = [$sanitize];
 			$taint = new ScalarTaint(Taint::UNTAINTED, $returnType);
@@ -355,7 +355,7 @@ class TransitionFunction
 		}
 
 		// sinks should be handled by rules?
-		$sink = $this->sinkFunctions->getSink($funcName);
+		$sink = $this->sinkFunctions->getSinkCategory($funcName);
 		if ($sink) {
 			$sink = [$sink];
 			$taint = new ScalarTaint(Taint::TAINTED, $returnType);

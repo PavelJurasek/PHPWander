@@ -14,25 +14,23 @@ class SanitizerFunctions implements IConfiguration
 	/** @var Configuration */
 	private $inner;
 
+	/** @var array */
+	private $extra;
+
 	/** @var array|null */
 	private $flat;
 
-	public function __construct(Configuration $inner)
+	public function __construct(Configuration $inner, array $extra = [])
 	{
 		$this->inner = $inner;
+		$this->extra = $extra;
 	}
 
 	public function getAll(): array
 	{
 		if ($this->flat === null) {
-			$this->flat = array_merge(
-				$this->getSection('xss'),
-				$this->getSection('sql'),
-				$this->getSection('preg'),
-				$this->getSection('file'),
-				$this->getSection('system'),
-				$this->getSection('xpath')
-			);
+			$inner = $this->inner->getAll();
+			$this->flat = array_merge($inner, $this->inner->flatten($this->extra));
 		}
 
 		return $this->flat;
@@ -40,7 +38,13 @@ class SanitizerFunctions implements IConfiguration
 
 	public function getSection(string $section): array
 	{
-		return $this->inner->getSection($section);
+		$sectionData = $this->inner->getSection($section);
+
+		if (array_key_exists($section, $this->extra)) {
+			$sectionData = array_merge($sectionData, $this->extra[$section]);
+		}
+
+		return $sectionData;
 	}
 
 	public function sanitizesBool(string $functionName): bool
@@ -83,16 +87,12 @@ class SanitizerFunctions implements IConfiguration
 		return in_array($functionName, $this->getSection('xpath'), true);
 	}
 
-	public function sanitizesAll(string $functionName): bool
+	public function getSanitizingCategory(string $functionName): ?string
 	{
-		return in_array($functionName, $this->getAll(), true);
-	}
-
-	public function getSanitize(string $functionName): ?string
-	{
-		foreach ($this->inner->getTree() as $section => $functions) {
+		$categories = array_merge_recursive($this->inner->getTree(), $this->extra);
+		foreach ($categories as $category => $functions) {
 			if (in_array($functionName, $functions, true)) {
-				return $section;
+				return $category;
 			}
 		}
 

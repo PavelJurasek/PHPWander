@@ -12,6 +12,11 @@ parameters:
 includes:
 	- rules.neon
 
+extensions:
+	sinks: PHPWander\DI\ExtraExtension('sinkFunctions', 'extra')
+	sources: PHPWander\DI\ExtraExtension('sourceFunctions', 'extra')
+	sanitizers: PHPWander\DI\ExtraExtension('sanitizerFunctions', 'extra')
+
 services:
 	lexer: PhpParser\Lexer
 	parser: PhpParser\Parser\Php7

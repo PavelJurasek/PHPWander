@@ -2,8 +2,6 @@
 
 namespace PHPWander;
 
-use PHPCfg\Op\Expr\FuncCall;
-use PHPCfg\Operand\Literal;
 use PHPWander\Utils\Configuration;
 use PHPWander\Utils\IConfiguration;
 
@@ -16,18 +14,22 @@ class SinkFunctions implements IConfiguration
 	/** @var Configuration */
 	private $inner;
 
+	/** @var array */
+	private $extra;
+
 	/** @var array|null */
 	private $flat;
 
-	public function __construct(Configuration $inner)
+	public function __construct(Configuration $inner, array $extra = [])
 	{
 		$this->inner = $inner;
+		$this->extra = $extra;
 	}
 
 	public function getAll(): array
 	{
 		if ($this->flat === null) {
-			$this->flat = $this->inner->getAll();
+			$this->flat = array_merge($this->inner->getAll(), $this->inner->flatten($this->extra));
 		}
 
 		return $this->flat;
@@ -35,37 +37,26 @@ class SinkFunctions implements IConfiguration
 
 	public function getSection(string $section): array
 	{
-		return $this->inner->getSection($section);
-	}
+		$sectionData = $this->inner->getSection($section);
 
-	public function isSensitive(FuncCall $node): bool
-	{
-		$name = $node->name instanceof Literal ? $node->name->value : $node;
-
-		if (!array_key_exists($name, $this->getAll())) {
-			return false;
+		if (array_key_exists($section, $this->extra)) {
+			$sectionData = array_merge($sectionData, $this->extra[$section]);
 		}
 
-		return true;
-
-		$args = $this->getAll()[$name][0];
-
-		foreach ($args as $argNumber) {
-			if ($argNumber === 0) {
-				return true;
-			}
-
-//			if ()
-		}
-
-		return false;
+		return $sectionData;
 	}
 
-	public function getSink(string $functionName): ?string
+	public function isSensitive(string $function): bool
 	{
-		foreach ($this->inner->getTree() as $section => $functions) {
-			if (in_array($functionName, $functions, true)) {
-				return $section;
+		return array_key_exists($function, $this->getAll());
+	}
+
+	public function getSinkCategory(string $functionName): ?string
+	{
+		$categories = array_merge_recursive($this->inner->getTree(), $this->extra);
+		foreach ($categories as $category => $functions) {
+			if (array_key_exists($functionName, $functions)) {
+				return $category;
 			}
 		}
 

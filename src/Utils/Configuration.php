@@ -34,7 +34,7 @@ class Configuration implements IConfiguration
 	public function getAll(): array
 	{
 		if ($this->flat === null) {
-			$this->flat = array_merge(...array_values($this->getTree()));
+			$this->flat = $this->flatten($this->getTree());
 		}
 
 		return $this->flat;
@@ -43,6 +43,15 @@ class Configuration implements IConfiguration
 	public function getSection(string $section): array
 	{
 		return $this->configurationLoader->load()[$section];
+	}
+
+	public function flatten(array $array): array
+	{
+		if (count($array) === 0) {
+			return $array;
+		}
+
+		return array_merge(...array_values($array));
 	}
 
 }

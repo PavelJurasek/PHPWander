@@ -132,8 +132,3 @@ xpath:
 	- addslashes
 
 ldap: []
-
-all: [%xss%, %sql%, %preg%, %file%, %system%, %xpath%]
-
-# sanitizing functions that work only when embedded in quotes
-quoteAnalysis: [%sql%]
