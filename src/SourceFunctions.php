@@ -52,7 +52,6 @@ class SourceFunctions implements IConfiguration
 	{
 		$categories = array_merge_recursive($this->inner->getTree(), $this->extra);
 		foreach ($categories as $category => $functions) {
-			var_dump($functions);
 			if (in_array($functionName, $functions, true)) {
 				return $category;
 			}

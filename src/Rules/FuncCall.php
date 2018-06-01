@@ -89,7 +89,6 @@ class FuncCall extends AbstractRule implements Rule
 
 		if ($errors === []) {
 			if ($node->getAttribute(Taint::ATTR, new ScalarTaint(Taint::UNKNOWN))->isTainted() && $node->getAttribute(Taint::ATTR_SINK) !== null) {
-				var_dump($node->getAttribute(Taint::ATTR_SINK));
 				$errors[] = sprintf('Sensitive sink %s is tainted.', $name);
 			}
 		}
