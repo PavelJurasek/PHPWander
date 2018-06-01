@@ -358,7 +358,7 @@ class TransitionFunction
 		$sink = $this->sinkFunctions->getSinkCategory($funcName);
 		if ($sink) {
 			$sink = [$sink];
-			$taint = new ScalarTaint(Taint::TAINTED, $returnType);
+			$taint = new ScalarTaint(Taint::UNKNOWN, $returnType);
 			$op->setAttribute(Taint::ATTR_SINK, $sink);
 		}
 
