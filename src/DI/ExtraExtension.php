@@ -3,6 +3,8 @@
 namespace PHPWander\DI;
 
 use Nette\DI\CompilerExtension;
+use Nette\DI\Config\Helpers;
+use Nette\DI\ServiceDefinition;
 
 /**
  * @author Pavel Jurásek
@@ -27,9 +29,10 @@ class ExtraExtension extends CompilerExtension
 
 	public function beforeCompile()
 	{
-		$config = $this->getConfig($this->defaults);
+		$config = Helpers::merge($this->getConfig(), $this->defaults);
 		$builder = $this->getContainerBuilder();
 
+		/** @var ServiceDefinition $definition */
 		$definition = $builder->getDefinition($this->definitionName);
 
 		$definition->getFactory()->arguments[$this->constructorArgumentName] = $config;

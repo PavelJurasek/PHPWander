@@ -65,7 +65,7 @@ services:
 			storage: @cacheStorage
 
 
-	relativePathHelper: 
+	relativePathHelper:
 		class: PHPStan\File\RelativePathHelper
 		imported: true
 

@@ -706,9 +706,9 @@ class NodeScopeResolver
 		} elseif ($expr instanceof Op\Expr\ConstFetch) {
 			$constName = $this->printer->printOperand($expr->name, $scope);
 
-			if ($scope->hasConstant($constName)) {
-				return [$scope->getConstant($constName)];
-			}
+//			if ($scope->hasConstant($constName)) {
+//				return [$scope->getConstant($constName)];
+//			}
 
 			return $this->unpackExpression($expr->name, $scope);
 		} elseif ($expr instanceof Op\Expr\FuncCall) {
@@ -1035,7 +1035,7 @@ class NodeScopeResolver
 			$left = $this->transitionFunction->transfer($scope, $expr->left);
 			$right = $this->transitionFunction->transfer($scope, $expr->right);
 
-			if ($left->getType()->accepts($right->getType())) {
+			if ($left->getType()->accepts($right->getType(), true)->yes()) {
 				return new ConstantBooleanType(true);
 			}
 		}

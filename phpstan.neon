@@ -2,6 +2,9 @@ parameters:
 	autoload_directories:
 		- src
 	ignoreErrors:
+		- '#Parameter \#1 \$node \(PHPCfg\\Op\\Expr\\StaticCall\) of method PHPWander\\Rules\\StaticCall::processNode\(\) should be compatible with parameter \$node \(PHPCfg\\Op\\Expr\\MethodCall\) of method PHPWander\\Rules\\MethodCall::processNode\(\)#'
+		- '#Parameter \#1 \$node \(PHPCfg\\Op\\Expr\\MethodCall\) of method PHPWander\\Rules\\MethodCall::processNode\(\) should be compatible with parameter \$node \(PHPCfg\\Op\\Expr\\FuncCall\) of method PHPWander\\Rules\\FuncCall::processNode\(\)#'
+		- '#Call to an undefined method PHPCfg\\Op\\CallableOp::getAttribute\(\)#'
 
 	excludes_analyse:
 		- src/index.php

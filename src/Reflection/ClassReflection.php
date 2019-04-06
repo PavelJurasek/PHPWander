@@ -111,7 +111,7 @@ class ClassReflection
 				return $this->broker->getClass($this->parentClass)->getMethod($methodName);
 			}
 
-			throw new MissingMethodFromReflectionException($this->displayName, $methodName);
+			throw new MissingMethodFromReflectionException($this->displayName, $methodName, $this->getFile());
 		}
 
 		return $this->methods[$methodName];
