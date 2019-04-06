@@ -20,4 +20,4 @@ if (!isset($tmpDir)) {
 
 $additionalConfigFiles = [];
 
-return $containerFactory->create($tmpDir, $additionalConfigFiles);
+return $containerFactory->create($tmpDir, $additionalConfigFiles, []);

@@ -106,7 +106,7 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 			}
 		}
 
-		$container = $containerFactory->create($tmpDir, $additionalConfigFiles);
+		$container = $containerFactory->create($tmpDir, $additionalConfigFiles, $paths);
 
 		$errorFormat = $input->getOption('error-format');
 		$errorFormatterServiceName = sprintf('errorFormatter.%s', $errorFormat);

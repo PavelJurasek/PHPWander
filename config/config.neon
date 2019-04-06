@@ -23,7 +23,7 @@ services:
 	neon: Nette\Neon\Neon
 
 	transition:
-		class: PHPWander\TransitionFunction
+		type: PHPWander\TransitionFunction
 		arguments:
 			sourceFunctions: @sourceFunctions
 			sinkFunctions: @sinkFunctions
@@ -33,39 +33,43 @@ services:
 	_registryFactory: PHPWander\Rules\RegistryFactory
 
 	_registry:
-		class: PHPWander\Rules\Registry
+		type: PHPWander\Rules\Registry
 		factory: @_registryFactory::create()
 
 	-
-		class: PHPWander\Command\AnalyseApplication
+		type: PHPWander\Command\AnalyseApplication
 		arguments:
 			fileExtensions: %fileExtensions%
 
 	analyser:
-		class: PHPWander\Analyser\Analyser
+		type: PHPWander\Analyser\Analyser
 		arguments: [%rootDir%, %fileExtensions%]
 
 
 	broker:
-		class: PHPWander\Broker\Broker
+		type: PHPWander\Broker\Broker
 
 	- PhpParser\PrettyPrinter\Standard
 
 	- PHPStan\Type\FileTypeMapper
 
 	cacheStorage:
-		class: PHPStan\Cache\FileCacheStorage
+		type: PHPStan\Cache\FileCacheStorage
 		arguments:
 			directory: %tmpDir%/cache/PHPStan
 		autowired: no
 
 	-
-		class: PHPStan\Cache\Cache
+		type: PHPStan\Cache\Cache
 		arguments:
 			storage: @cacheStorage
 
 
-	- PHPStan\Broker\AnonymousClassNameHelper(%currentWorkingDirectory%)
+	relativePathHelper: 
+		class: PHPStan\File\RelativePathHelper
+		imported: true
+
+	- PHPStan\Broker\AnonymousClassNameHelper
 
 	- PHPStan\Parser\FunctionCallStatementFinder
 
@@ -75,12 +79,9 @@ services:
 	- PHPStan\PhpDoc\TypeStringResolver
 
 	- PHPStan\PhpDocParser\Lexer\Lexer
-	-
-		class: PHPStan\PhpDocParser\Parser\TypeParser
-	-
-		class: PHPStan\PhpDocParser\Parser\ConstExprParser
-	-
-		class: PHPStan\PhpDocParser\Parser\PhpDocParser
+	- PHPStan\PhpDocParser\Parser\TypeParser
+	- PHPStan\PhpDocParser\Parser\ConstExprParser
+	- PHPStan\PhpDocParser\Parser\PhpDocParser
 
 	- PHPStan\Reflection\Annotations\AnnotationsMethodsClassReflectionExtension
 	- PHPStan\Reflection\Annotations\AnnotationsPropertiesClassReflectionExtension
@@ -92,11 +93,11 @@ services:
 	- PHPStan\Reflection\SignatureMap\SignatureMapProvider
 
 	stanBroker:
-		class: PHPStan\Broker\Broker
+		type: PHPStan\Broker\Broker
 		factory: @brokerFactory::create
 
 	brokerFactory:
-		class: PHPStan\Broker\BrokerFactory
+		type: PHPStan\Broker\BrokerFactory
 
 
 	nodeTraverser: PhpParser\NodeTraverser
@@ -106,35 +107,43 @@ services:
 	stanParser: PHPStan\Parser\DirectParser
 
 	sources:
-		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sources.neon))
+		factory: PHPWander\Utils\Configuration
+		arguments:
+		    - PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sources.neon)
 		autowired: false
 	sinks:
-		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sinks.neon))
+		factory: PHPWander\Utils\Configuration
+		arguments:
+		    - PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sinks.neon)
 		autowired: false
 	sanitizers:
-		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sanitizers.neon))
+		factory: PHPWander\Utils\Configuration
+		arguments:
+		    - PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/sanitizers.neon)
 		autowired: false
 	getTaint:
-		class: PHPWander\Utils\Configuration(PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/tainting.neon))
+		factory: PHPWander\Utils\Configuration
+		arguments:
+		    - PHPWander\Utils\ConfigurationLoaders\Neon(%rootDir%/config/tainting.neon)
 		autowired: false
 
 	sourceFunctions:
-		class: PHPWander\SourceFunctions
+		type: PHPWander\SourceFunctions
 		arguments: [@sources]
 		autowired: false
 
 	sanitizerFunctions:
-		class: PHPWander\SanitizerFunctions
+		type: PHPWander\SanitizerFunctions
 		arguments: [@sanitizers]
 		autowired: false
 
 	sinkFunctions:
-		class: PHPWander\SinkFunctions
+		type: PHPWander\SinkFunctions
 		arguments: [@sinks]
 		autowired: false
 
 	taintFunctions:
-		class: PHPWander\TaintFunctions
+		type: PHPWander\TaintFunctions
 		arguments: [@getTaint]
 		autowired: false
 
@@ -142,12 +151,12 @@ services:
 	fileExcluder: PHPStan\File\FileExcluder(@fileHelper, %excludeFiles%)
 
 	cfgParser:
-		class: PHPCfg\Parser
+		type: PHPCfg\Parser
 
 	nodeScopeResolver: PHPWander\Analyser\NodeScopeResolver
 
 	wanderDirectParser:
-		class: PHPWander\Parser\DirectParser
+		type: PHPWander\Parser\DirectParser
 		autowired: false
 
 	cachedParser: PHPWander\Parser\CachedParser(@wanderDirectParser)
@@ -159,7 +168,7 @@ services:
 	- PHPWander\Describer\StandardDescriber
 
 	errorFormatter.raw:
-		class: PHPStan\Command\ErrorFormatter\RawErrorFormatter
+		type: PHPStan\Command\ErrorFormatter\RawErrorFormatter
 
 	errorFormatter.table:
-		class: PHPStan\Command\ErrorFormatter\TableErrorFormatter
+		type: PHPStan\Command\ErrorFormatter\TableErrorFormatter

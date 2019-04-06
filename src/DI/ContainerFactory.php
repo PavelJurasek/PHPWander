@@ -3,11 +3,13 @@
 namespace PHPWander\DI;
 
 use Nette\Configurator;
+use Nette\DI\Container;
 use Nette\DI\Extensions\DecoratorExtension;
 use Nette\DI\Extensions\ExtensionsExtension;
 use Nette\DI\Extensions\PhpExtension;
 use PHPStan\Broker\Broker;
 use PHPStan\File\FileHelper;
+use PHPStan\File\RelativePathHelper;
 use Tracy\Bridges\Nette\TracyExtension;
 
 class ContainerFactory
@@ -32,8 +34,9 @@ class ContainerFactory
 
 	public function create(
 		string $tempDirectory,
-		array $additionalConfigFiles
-	): \Nette\DI\Container
+		array $additionalConfigFiles,
+		array $analysedPaths
+	): Container
 	{
 		$configurator = new Configurator;
 		$configurator->defaultExtensions = [
@@ -55,7 +58,12 @@ class ContainerFactory
 			$configurator->addConfig($additionalConfigFile);
 		}
 
+		$configurator->addServices([
+			'relativePathHelper' => new RelativePathHelper($this->currentWorkingDirectory, DIRECTORY_SEPARATOR, $analysedPaths),
+		]);
+
 		$container = $configurator->createContainer();
+//		$container->addService('relativePathHelper', new RelativePathHelper($this->currentWorkingDirectory, DIRECTORY_SEPARATOR, $analysedPaths));
 
 		/** @var Broker $broker */
 		$broker = $container->getService('stanBroker');
